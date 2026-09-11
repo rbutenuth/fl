@@ -98,6 +98,7 @@ impl Parser {
 mod tests {
     use crate::{Value, FlError};
     use crate::parser::parser::Parser;
+    use crate::list::tests::*;
     use std::sync::Arc;
 
     #[test]
@@ -155,6 +156,16 @@ mod tests {
         let value = p.next().unwrap();
         match value {
             Ok(Value::List(list)) => assert_eq!(0, list.len()),
+            _ => panic!("list expected"),
+        }
+    }
+
+    #[test]
+    fn test_list_of_integers() {
+        let mut p = Parser::parser_from_str("(1 2 3)");
+        let value = p.next().unwrap();
+        match value {
+            Ok(Value::List(list)) => verify(&list, 1, 4),
             _ => panic!("list expected"),
         }
     }

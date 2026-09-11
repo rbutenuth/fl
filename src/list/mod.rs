@@ -23,7 +23,7 @@ impl Clone for FlList {
 }
 
 #[cfg(test)]
-mod tests {
+pub mod tests {
     use super::*;
 
     pub fn create_vec(from: usize, to: usize) -> Vec<Value> {
