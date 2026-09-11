@@ -1,9 +1,7 @@
 use std::sync::Arc;
 
 use crate::{
-    Value::{self, Error},
-    list::FlList,
-    parser::{
+    FlError, Value::self, list::FlList, parser::{
         scanner::Scanner,
         token::{Token, Type::*},
     },
@@ -15,7 +13,7 @@ pub struct Parser {
 }
 
 impl Iterator for Parser {
-    type Item = Value;
+    type Item = Result<Value, FlError>;
 
     fn next(&mut self) -> Option<Self::Item> {
         match self.next_token.take() {
@@ -34,16 +32,16 @@ impl Parser {
         }
     }
 
-    pub fn value(&mut self, token: Token) -> Value {
+    pub fn value(&mut self, token: Token) -> Result<Value, FlError> {
         match token.t_type {
             LeftParen => self.list(),
             Quote => todo!(),
-            Integer { value } => self.integer(value),
-            Float { value } => self.float(value),
-            Symbol { value, comment } => self.symbol(value, comment),
-            Text { value } => self.text(value),
-            NonScanable { message } => Error(message),
-            _ => Error(Arc::from("unexpected )")), // TODO: Position
+            Integer { value } => Ok(self.integer(value)),
+            Float { value } => Ok(self.float(value)),
+            Symbol { value, comment } => Ok(self.symbol(value, comment)),
+            Text { value } => Ok(self.text(value)),
+            NonScanable { message } => Err(FlError::new_arc(message)), // TODO: Position
+            _ => Err(FlError::new("unexpected )")), // TODO: Position
         }
     }
 
@@ -71,24 +69,24 @@ impl Parser {
         Value::Text(Arc::from(text))
     }
 
-    fn list(&mut self) -> Value {
+    fn list(&mut self) -> Result<Value, FlError> {
         self.fetch_next_token(); // skip (
 
         let mut elements: Vec<Value> = Vec::new();
 
         loop {
             match &self.next_token {
-                None => return Value::Error(Arc::from("Unexpected end of source in list")), // TODO: position
+                None => return Err(FlError::new("Unexpected end of source in list")), // TODO: position
                 Some(token) if matches!(token.t_type, RightParen) => break,
                 Some(_) => {
                     let token = self.next_token.take().unwrap();
-                    elements.push(self.value(token));
+                    elements.push(self.value(token)?);
                 }
             }
         }
 
         self.fetch_next_token(); // skip )
-        Value::List(FlList::from_values(elements))
+        Ok(Value::List(FlList::from_values(elements)))
     }
 
     fn fetch_next_token(&mut self) {
@@ -98,7 +96,7 @@ impl Parser {
 
 #[cfg(test)]
 mod tests {
-    use crate::Value;
+    use crate::{Value, FlError};
     use crate::parser::parser::Parser;
     use std::sync::Arc;
 
@@ -112,25 +110,25 @@ mod tests {
     #[test]
     fn test_integer_constant() {
         let mut p = Parser::parser_from_str("42");
-        assert_eq!(Value::Integer(42), p.next().unwrap());
+        assert_eq!(Value::Integer(42), p.next().unwrap().unwrap());
     }
 
     #[test]
     fn test_float_constant() {
         let mut p = Parser::parser_from_str("3.14");
-        assert_eq!(Value::Float(3.14), p.next().unwrap());
+        assert_eq!(Value::Float(3.14), p.next().unwrap().unwrap());
     }
 
     #[test]
     fn test_text_constant() {
         let mut p = Parser::parser_from_str("\"a text\"");
-        assert_eq!(Value::Text(Arc::from("a text")), p.next().unwrap());
+        assert_eq!(Value::Text(Arc::from("a text")), p.next().unwrap().unwrap());
     }
 
     #[test]
     fn test_symbol_with_comment() {
         let mut p = Parser::parser_from_str("; bla fasel\nfoo");
-        let symbol = p.next().unwrap();
+        let symbol = p.next().unwrap().unwrap();
         // Comment is not considered for equality of symbols
         assert_eq!(Value::Symbol(Arc::from("foo"), None), symbol);
         match symbol {
@@ -146,7 +144,7 @@ mod tests {
     fn test_unexpected_right_paren() {
         let mut p = Parser::parser_from_str(")");
         assert_eq!(
-            Value::Error(Arc::from("unexpected )")),
+            Err(FlError::new("unexpected )")),
             p.next().unwrap()
         );
     }
@@ -156,7 +154,7 @@ mod tests {
         let mut p = Parser::parser_from_str("()");
         let value = p.next().unwrap();
         match value {
-            Value::List(list) => assert_eq!(0, list.len()),
+            Ok(Value::List(list)) => assert_eq!(0, list.len()),
             _ => panic!("list expected"),
         }
     }

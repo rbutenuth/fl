@@ -2,7 +2,7 @@
 //use std::fmt;
 //use std::sync::Arc;
 
-use crate::{FplError, Value};
+use crate::{FlError, Value};
 
 use super::{FlList};
 //use super::{Bucket, FplList};
@@ -13,10 +13,10 @@ impl FlList {
         self.buckets.iter().map(|b| b.values.len()).sum()
     }
 
-    pub fn get(&self, index: isize) -> Result<Value, FplError> {
+    pub fn get(&self, index: isize) -> Result<Value, FlError> {
         self.check_not_empty("get on empty list")?;
         if index < 0 {
-            return Err(FplError::new(format!("negative index: {}", index)));
+            return Err(FlError::new(&format!("negative index: {}", index)));
         }
         let u_index = index as usize;
         let mut bucket_idx = 0;
@@ -26,18 +26,18 @@ impl FlList {
             count += self.buckets[bucket_idx].values.len();
             bucket_idx += 1;
             if bucket_idx >= self.buckets.len() {
-            	return Err(FplError::new(String::from("index >= size")));
+            	return Err(FlError::new("index >= size"));
             }
         }
 
         Ok(self.buckets[bucket_idx].values[u_index - count].clone())
     }
 
-    fn check_not_empty(&self, message: &str) -> Result<(), FplError> {
+    fn check_not_empty(&self, message: &str) -> Result<(), FlError> {
         if self.buckets.len() > 0 {
             Ok(())
         } else {
-            Err(FplError::new(String::from(message)))
+            Err(FlError::new(message))
         }
     }
 }

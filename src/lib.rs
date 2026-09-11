@@ -1,5 +1,4 @@
 use std::{error::Error, fmt, sync::Arc };
-//use std::{error::Error, fmt, sync::Arc};
 
 use list::FlList;
 
@@ -18,7 +17,6 @@ pub enum Value {
     Map(), // TODO: implement
     Object(), // TODO: implement
     Function(), // TODO: implement
-    Error(Arc<str>) // TODO: nested Error, stack trace
 }
 
 impl Clone for Value {
@@ -33,7 +31,6 @@ impl Clone for Value {
             Self::Map() => Self::Map(),
             Self::Object() => Self::Object(),
             Self::Function() => Self::Function(),
-            Self::Error(m) => Self::Error(m.clone())
         }
     }
 }
@@ -46,34 +43,38 @@ impl PartialEq for Value {
             (Value::Float(s), Value::Float(o)) => s == o,
             (Value::Text(s), Value::Text(o)) => s == o,
             (Value::Symbol(s, _), Value::Symbol(o, _)) => s == o,
-            (Value::Error(s), Value::Error(o)) => s == o,
             _ => false,
         }
     }
 }
 
 
-#[derive(Debug)]
-pub struct FplError{
-    message: String,
+#[derive(Debug, PartialEq)]
+pub struct FlError{
+    message: Arc<str>,
     // TODO: Add information about source position and source (RUST for cause in Java)
 }
 
-impl fmt::Display for FplError {
+impl fmt::Display for FlError {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         write!(f, "TODO {}", self.message)
     }
 }
 
-impl Error for FplError {
+impl Error for FlError {
     // TODO: implement chaining
     fn source(&self) -> Option<&(dyn Error + 'static)> {
         None
     }
 }
 
-impl FplError {
-    pub fn new(message: String) -> FplError {
-        FplError{ message: message }
+impl FlError {
+
+    pub fn new(message: &str) -> FlError {
+        Self::new_arc(Arc::from(message))
+    }
+
+    pub fn new_arc(message: Arc<str>) -> FlError {
+        FlError{ message: Arc::clone(&message) }
     }
 }
