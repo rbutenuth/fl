@@ -118,6 +118,7 @@ mod tests {
     fn test_from_value_vec() {
         let list = FlList::from_values(create_vec(0, 10));
         assert_eq!(list.len(), 10);
+        verify(&list, 0, 10);
     }
 
     #[test]

@@ -37,4 +37,14 @@ mod tests {
     pub fn create(from: usize, to: usize) -> FlList {
         FlList::from_values(create_vec(from, to))
     }
+
+    pub fn verify(list: &FlList, from: usize, to: usize) {
+        assert_eq!(to - from, list.len(), "unexpected list length");
+        for (i, v) in list.iter().enumerate() {
+            match v {
+                Value::Integer(n) => assert_eq!((from + i) as i64, n, "at index {i}"),
+                _ => panic!("expected Value::Integer at index {i}, got {:?}", v),
+            }
+        }
+    }
 }

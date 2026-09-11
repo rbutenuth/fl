@@ -1,11 +1,10 @@
 
 //use std::fmt;
-//use std::sync::Arc;
+use std::sync::Arc;
 
 use crate::{FlError, Value};
 
-use super::{FlList};
-//use super::{Bucket, FplList};
+use super::{Bucket, FlList};
 
 
 impl FlList {
@@ -33,6 +32,14 @@ impl FlList {
         Ok(self.buckets[bucket_idx].values[u_index - count].clone())
     }
 
+    pub fn iter(&self) -> FlListIter {
+        FlListIter {
+            buckets: Arc::clone(&self.buckets),
+            bucket_idx: 0,
+            in_bucket_idx: 0,
+        }
+    }
+
     fn check_not_empty(&self, message: &str) -> Result<(), FlError> {
         if self.buckets.len() > 0 {
             Ok(())
@@ -41,6 +48,40 @@ impl FlList {
         }
     }
 }
+
+pub struct FlListIter {
+    buckets: Arc<[Bucket]>,
+    bucket_idx: usize,
+    in_bucket_idx: usize,
+}
+
+impl Iterator for FlListIter {
+    type Item = Value;
+
+    fn next(&mut self) -> Option<Self::Item> {
+        while self.bucket_idx < self.buckets.len() {
+            let bucket = &self.buckets[self.bucket_idx];
+            if self.in_bucket_idx < bucket.values.len() {
+                let v = bucket.values[self.in_bucket_idx].clone();
+                self.in_bucket_idx += 1;
+                return Some(v);
+            }
+            self.bucket_idx += 1;
+            self.in_bucket_idx = 0;
+        }
+        None
+    }
+}
+
+impl IntoIterator for &FlList {
+    type Item = Value;
+    type IntoIter = FlListIter;
+
+    fn into_iter(self) -> Self::IntoIter {
+        self.iter()
+    }
+}
+
 
 #[cfg(test)]
 mod tests {
