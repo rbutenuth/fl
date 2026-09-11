@@ -4,11 +4,11 @@
 
 use crate::{FplError, Value};
 
-use super::{FplList};
+use super::{FlList};
 //use super::{Bucket, FplList};
 
 
-impl FplList {
+impl FlList {
     pub fn len(&self) -> usize {
         self.buckets.iter().map(|b| b.values.len()).sum()
     }
@@ -48,7 +48,7 @@ mod tests {
 
     #[test]
     fn test_empty_has_len_0_and_get_fails() {
-        let list = FplList::empty();
+        let list = FlList::empty();
         assert_eq!(0, list.len());
         let result = list.get(0);
         assert!(result.is_err());
@@ -56,21 +56,21 @@ mod tests {
 
     #[test]
     fn test_get_with_negative_index_fails() {
-        let list = FplList::from_value(Value::Integer(42));
+        let list = FlList::from_value(Value::Integer(42));
         let result = list.get(-1);
         assert!(result.is_err());
     }
 
     #[test]
     fn test_get_with_index_out_of_bounds_fails() {
-        let list = FplList::from_value(Value::Integer(42));
+        let list = FlList::from_value(Value::Integer(42));
         let result = list.get(1);
         assert!(result.is_err());
     }
 
     #[test]
     fn test_get_first() {
-        let list = FplList::from_value(Value::Integer(42));
+        let list = FlList::from_value(Value::Integer(42));
         let value = list.get(0).unwrap();
         assert_eq!(Value::Integer(42), value);
     }

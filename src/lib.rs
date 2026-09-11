@@ -1,7 +1,7 @@
 use std::{error::Error, fmt, sync::Arc };
 //use std::{error::Error, fmt, sync::Arc};
 
-use list::FplList;
+use list::FlList;
 
 mod list;
 mod parser;
@@ -12,7 +12,7 @@ pub enum Value {
     Nil,
     Integer(i64),
     Float(f64),
-    List(FplList),
+    List(FlList),
     Symbol(Arc<str>, Option<Arc<str>>), // name, comment
     Text(Arc<str>),
     Map(), // TODO: implement
