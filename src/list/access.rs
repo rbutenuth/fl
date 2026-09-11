@@ -32,6 +32,16 @@ impl FlList {
         Ok(self.buckets[bucket_idx].values[u_index - count].clone())
     }
 
+    pub fn first(&self) -> Result<Value, FlError> {
+        self.check_not_empty("first on empty list")?;
+        Ok(self.buckets[0].values[0].clone())
+    }
+
+    pub fn last(&self) -> Result<Value, FlError> {
+        self.check_not_empty("last on empty list")?;
+        Ok(self.buckets.last().unwrap().values.last().unwrap().clone())
+    }
+
     pub fn iter(&self) -> FlListIter {
         FlListIter {
             buckets: Arc::clone(&self.buckets),
@@ -86,13 +96,18 @@ impl IntoIterator for &FlList {
 #[cfg(test)]
 mod tests {
     use super::*;
+    use super::super::tests::{create, verify};
 
     #[test]
     fn test_empty_has_len_0_and_get_fails() {
         let list = FlList::empty();
         assert_eq!(0, list.len());
-        let result = list.get(0);
-        assert!(result.is_err());
+        let at_zero = list.get(0);
+        assert!(at_zero.is_err());
+        let first = list.first();
+        assert!(first.is_err());
+        let last = list.last();
+        assert!(last.is_err());
     }
 
     #[test]
@@ -114,5 +129,13 @@ mod tests {
         let list = FlList::from_value(Value::Integer(42));
         let value = list.get(0).unwrap();
         assert_eq!(Value::Integer(42), value);
+    }
+
+    #[test]
+    fn test_first_and_last() {
+        let list = create(1, 6);
+        verify(&list, 1, 6);
+        assert_eq!(Value::Integer(1), list.first().unwrap());
+        assert_eq!(Value::Integer(5), list.last().unwrap());
     }
 }

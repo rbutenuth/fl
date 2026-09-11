@@ -32,6 +32,24 @@ impl FlList {
         }
     }
 
+    pub fn from_pair(left: Value, right: Value) -> FlList {
+        let mut u_values: Arc<[MaybeUninit<Value>]> = Arc::new_uninit_slice(2);
+
+        let values = Arc::get_mut(&mut u_values).unwrap();
+        values[0].write(left);
+        values[1].write(right);
+        let bucket = Bucket {
+            values: unsafe { u_values.assume_init() },
+        };
+
+        let mut u_buckets: Arc<[MaybeUninit<Bucket>]> = Arc::new_uninit_slice(1);
+        let m_buckets = Arc::get_mut(&mut u_buckets).unwrap();
+        m_buckets[0].write(bucket);
+        FlList {
+            buckets: unsafe { u_buckets.assume_init() },
+        }
+    }
+
     pub fn from_values(elements: Vec<Value>) -> FlList {
         if elements.len() == 0 {
             Self::empty()
@@ -114,7 +132,13 @@ mod tests {
         }
     }
 
-        #[test]
+    #[test]
+    fn test_from_pair() {
+        let list = FlList::from_pair(Value::Integer(1), Value::Integer(2));
+        verify(&list, 1, 3);
+    }
+
+    #[test]
     fn test_from_value_vec() {
         let list = FlList::from_values(create_vec(0, 10));
         assert_eq!(list.len(), 10);
