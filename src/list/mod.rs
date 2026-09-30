@@ -1,15 +1,19 @@
 use std::sync::Arc;
 
-use crate::Value;
+use crate::{FlError, Value};
 
 mod construct;
+mod add_and_join;
 mod access;
+mod destruct;
 
 #[derive(Debug)]
 pub struct FlList {
     buckets: Arc<[Bucket]>,
 }
 
+const BASE_SIZE: usize = 8;
+const FACTOR: usize = 4;
 
 #[derive(Debug)]
 struct Bucket {
@@ -19,6 +23,50 @@ struct Bucket {
 impl Clone for FlList {
     fn clone(&self) -> Self {
         Self { buckets: Arc::clone(&self.buckets) }
+    }
+}
+
+impl FlList {
+    fn check_not_empty(&self, message: &str) -> Result<(), FlError> {
+        if self.buckets.len() > 0 {
+            Ok(())
+        } else {
+            Err(FlError::new(message))
+        }
+    }
+
+    fn needs_reshaping(number_of_buckets: usize, len: usize) -> bool {
+		(1 << number_of_buckets) > len
+    }
+
+    /// Create a vec with bucket sizes for a list of `size`. Starting at both ends
+    /// with size 3/4 * BASE_SIZE and increasing by FACTOR to the middle.
+    fn compute_bucket_sizes(size: usize) -> Vec<usize> {
+        let mut num_buckets: usize = 2;
+        let mut bucket_size: usize = 3 * BASE_SIZE / 4;
+        let mut size_in_buckets: usize = 2 * bucket_size;
+        while size_in_buckets < size {
+            bucket_size *= FACTOR;
+            size_in_buckets += 2 * bucket_size;
+            num_buckets += 2;
+        }
+        num_buckets -= 1;
+        let mut bucket_sizes: Vec<usize> = vec![0; num_buckets];
+        bucket_size = BASE_SIZE;
+        let mut rest = size;
+        let mut i: usize = 0;
+        let mut j: usize = num_buckets - 1;
+        while i < j {
+            bucket_sizes[i] = bucket_size / 2;
+            bucket_sizes[j] = bucket_size / 2;
+            rest -= bucket_sizes[i] + bucket_sizes[j];
+            bucket_size *= FACTOR;
+            i += 1;
+            j -= 1;
+        }
+        bucket_sizes[i] = rest;
+
+        bucket_sizes
     }
 }
 

@@ -12,6 +12,10 @@ impl FlList {
         self.buckets.iter().map(|b| b.values.len()).sum()
     }
 
+    pub fn is_empty(&self) -> bool {
+        self.buckets.len() == 0
+    }
+
     pub fn get(&self, index: isize) -> Result<Value, FlError> {
         self.check_not_empty("get on empty list")?;
         if index < 0 {
@@ -50,13 +54,6 @@ impl FlList {
         }
     }
 
-    fn check_not_empty(&self, message: &str) -> Result<(), FlError> {
-        if self.buckets.len() > 0 {
-            Ok(())
-        } else {
-            Err(FlError::new(message))
-        }
-    }
 }
 
 pub struct FlListIter {
@@ -138,4 +135,13 @@ mod tests {
         assert_eq!(Value::Integer(1), list.first().unwrap());
         assert_eq!(Value::Integer(5), list.last().unwrap());
     }
+
+    #[test]
+    fn test_is_empty() {
+        let list = FlList::empty();
+        assert_eq!(0, list.len());
+        let list = FlList::from_value(Value::Integer(42));
+        assert!(!list.is_empty());
+    }
+
 }

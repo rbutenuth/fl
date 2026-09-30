@@ -5,9 +5,6 @@ use crate::Value;
 
 use super::{Bucket, FlList};
 
-const BASE_SIZE: usize = 8;
-const FACTOR: usize = 4;
-
 impl FlList {
     pub fn empty() -> FlList {
         FlList {
@@ -54,8 +51,9 @@ impl FlList {
         if elements.len() == 0 {
             Self::empty()
         } else {
-            let bucket_sizes = Self::compute_bucket_sizes(elements.len());
-            let mut u_buckets: Arc<[MaybeUninit<Bucket>]> = Arc::new_uninit_slice(bucket_sizes.len());
+            let bucket_sizes = FlList::compute_bucket_sizes(elements.len());
+            let mut u_buckets: Arc<[MaybeUninit<Bucket>]> =
+                Arc::new_uninit_slice(bucket_sizes.len());
             let m_buckets = Arc::get_mut(&mut u_buckets).unwrap();
             let mut src_idx = 0;
             for (bucket_idx, &size) in bucket_sizes.iter().enumerate() {
@@ -65,7 +63,7 @@ impl FlList {
                     *v = elements[src_idx].clone();
                     src_idx += 1;
                 }
-                m_buckets[bucket_idx].write(Bucket { values: values});
+                m_buckets[bucket_idx].write(Bucket { values: values });
             }
 
             FlList {
@@ -83,32 +81,26 @@ impl FlList {
         unsafe { u_values.assume_init() }
     }
 
-    fn compute_bucket_sizes(size: usize) -> Vec<usize> {
-        let mut num_buckets: usize = 2;
-        let mut bucket_size = 3 * BASE_SIZE / 4;
-        let mut size_in_buckets = 2 * bucket_size;
-        while size_in_buckets < size {
-            bucket_size *= FACTOR;
-            size_in_buckets += 2 * bucket_size;
-            num_buckets += 2;
-        }
-        num_buckets -= 1;
-        let mut bucket_sizes = vec![0usize; num_buckets];
-        bucket_size = BASE_SIZE;
-        let mut rest = size;
-        let mut i = 0;
-        let mut j = num_buckets - 1;
-        while i < j {
-            bucket_sizes[i] = bucket_size / 2;
-            bucket_sizes[j] = bucket_size / 2;
-            rest -= bucket_sizes[i] + bucket_sizes[j];
-            bucket_size *= FACTOR;
-            i += 1;
-            j -= 1;
-        }
-        bucket_sizes[i] = rest;
+    pub fn from_values_with_shape(values: Vec<Value>, bucket_sizes: &[usize]) -> FlList {
+        let sum: usize = bucket_sizes.iter().sum();
+        assert_eq!(values.len(), sum, "values.len() != sum of bucket_sizes");
 
-        bucket_sizes
+        let mut iter = values.into_iter();
+        let mut u_buckets: Arc<[MaybeUninit<Bucket>]> = Arc::new_uninit_slice(bucket_sizes.len());
+        let m_buckets = Arc::get_mut(&mut u_buckets).unwrap();
+        for (bucket_idx, &size) in bucket_sizes.iter().enumerate() {
+            let mut u_values: Arc<[MaybeUninit<Value>]> = Arc::new_uninit_slice(size);
+            let slots = Arc::get_mut(&mut u_values).unwrap();
+            for slot in slots.iter_mut() {
+                slot.write(iter.next().unwrap());
+            }
+            m_buckets[bucket_idx].write(Bucket {
+                values: unsafe { u_values.assume_init() },
+            });
+        }
+        FlList {
+            buckets: unsafe { u_buckets.assume_init() },
+        }
     }
 }
 
