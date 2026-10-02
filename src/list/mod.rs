@@ -1,10 +1,11 @@
+use std::mem::MaybeUninit;
 use std::sync::Arc;
 
 use crate::{FlError, Value};
 
-mod construct;
-mod add_and_join;
 mod access;
+mod add_and_join;
+mod construct;
 mod destruct;
 
 #[derive(Debug)]
@@ -22,7 +23,9 @@ struct Bucket {
 
 impl Clone for FlList {
     fn clone(&self) -> Self {
-        Self { buckets: Arc::clone(&self.buckets) }
+        Self {
+            buckets: Arc::clone(&self.buckets),
+        }
     }
 }
 
@@ -36,7 +39,7 @@ impl FlList {
     }
 
     fn needs_reshaping(number_of_buckets: usize, len: usize) -> bool {
-		(1 << number_of_buckets) > len
+        (1 << number_of_buckets) > len
     }
 
     /// Create a vec with bucket sizes for a list of `size`. Starting at both ends
@@ -67,6 +70,25 @@ impl FlList {
         bucket_sizes[i] = rest;
 
         bucket_sizes
+    }
+
+    /// Build a [`Bucket`] from `items`, allocating its backing `Arc<[Value]>` directly
+    /// via [`Arc::new_uninit_slice`] so no intermediate `Vec` is needed.
+    ///
+    /// If `items` yields fewer
+    /// values than its reported length, remaining slots are filled with [`Value::Nil`]
+    /// rather than panicking.
+    fn fill_bucket(mut items: impl ExactSizeIterator<Item = Value>) -> Bucket {
+        let mut u_values: Arc<[MaybeUninit<Value>]> = Arc::new_uninit_slice(items.len());
+        let slots = Arc::get_mut(&mut u_values).unwrap();
+        for slot in slots.iter_mut() {
+            // The "or" case should never happen, but this way we avoid a panic,
+            // which on unwind will not free the the uninitialized values.
+            slot.write(items.next().unwrap_or(Value::Nil));
+        }
+        Bucket {
+            values: unsafe { u_values.assume_init() },
+        }
     }
 }
 

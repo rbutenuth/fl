@@ -7,17 +7,7 @@ use super::{Bucket, FlList};
 
 impl FlList {
 
-    fn fill_bucket(mut items: impl ExactSizeIterator<Item = Value>) -> Bucket {
-        let mut u_values: Arc<[MaybeUninit<Value>]> = Arc::new_uninit_slice(items.len());
-        let slots = Arc::get_mut(&mut u_values).unwrap();
-        for slot in slots.iter_mut() {
-            slot.write(items.next().unwrap());
-        }
-        Bucket {
-            values: unsafe { u_values.assume_init() },
-        }
-    }
-
+    // TODO: needed???
     fn fill_buckets(mut items: impl ExactSizeIterator<Item = Value>) -> Arc<[Bucket]> {
         let bucket_sizes = FlList::compute_bucket_sizes(items.len());
 

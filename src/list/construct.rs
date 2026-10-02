@@ -13,13 +13,7 @@ impl FlList {
     }
 
     pub fn from_value(value: Value) -> FlList {
-        let mut u_values: Arc<[MaybeUninit<Value>]> = Arc::new_uninit_slice(1);
-
-        let values = Arc::get_mut(&mut u_values).unwrap();
-        values[0].write(value);
-        let bucket = Bucket {
-            values: unsafe { u_values.assume_init() },
-        };
+        let bucket = Self::fill_bucket(std::iter::once(value));
 
         let mut u_buckets: Arc<[MaybeUninit<Bucket>]> = Arc::new_uninit_slice(1);
         let m_buckets = Arc::get_mut(&mut u_buckets).unwrap();
@@ -30,14 +24,7 @@ impl FlList {
     }
 
     pub fn from_pair(left: Value, right: Value) -> FlList {
-        let mut u_values: Arc<[MaybeUninit<Value>]> = Arc::new_uninit_slice(2);
-
-        let values = Arc::get_mut(&mut u_values).unwrap();
-        values[0].write(left);
-        values[1].write(right);
-        let bucket = Bucket {
-            values: unsafe { u_values.assume_init() },
-        };
+        let bucket = Self::fill_bucket([left, right].into_iter());
 
         let mut u_buckets: Arc<[MaybeUninit<Bucket>]> = Arc::new_uninit_slice(1);
         let m_buckets = Arc::get_mut(&mut u_buckets).unwrap();
@@ -52,33 +39,18 @@ impl FlList {
             Self::empty()
         } else {
             let bucket_sizes = FlList::compute_bucket_sizes(elements.len());
+            let mut iter = elements.into_iter();
             let mut u_buckets: Arc<[MaybeUninit<Bucket>]> =
                 Arc::new_uninit_slice(bucket_sizes.len());
             let m_buckets = Arc::get_mut(&mut u_buckets).unwrap();
-            let mut src_idx = 0;
             for (bucket_idx, &size) in bucket_sizes.iter().enumerate() {
-                let mut values = Self::nil_values(size);
-                let slice = Arc::get_mut(&mut values).unwrap();
-                for v in slice {
-                    *v = elements[src_idx].clone();
-                    src_idx += 1;
-                }
-                m_buckets[bucket_idx].write(Bucket { values: values });
+                m_buckets[bucket_idx].write(Self::fill_bucket(iter.by_ref().take(size)));
             }
 
             FlList {
                 buckets: unsafe { u_buckets.assume_init() },
             }
         }
-    }
-
-    pub fn nil_values(len: usize) -> Arc<[Value]> {
-        let mut u_values: Arc<[MaybeUninit<Value>]> = Arc::new_uninit_slice(len);
-        let mutable = Arc::get_mut(&mut u_values).unwrap();
-        for slot in mutable.iter_mut() {
-            slot.write(Value::Nil);
-        }
-        unsafe { u_values.assume_init() }
     }
 
     pub fn from_values_with_shape(values: Vec<Value>, bucket_sizes: &[usize]) -> FlList {
@@ -89,14 +61,7 @@ impl FlList {
         let mut u_buckets: Arc<[MaybeUninit<Bucket>]> = Arc::new_uninit_slice(bucket_sizes.len());
         let m_buckets = Arc::get_mut(&mut u_buckets).unwrap();
         for (bucket_idx, &size) in bucket_sizes.iter().enumerate() {
-            let mut u_values: Arc<[MaybeUninit<Value>]> = Arc::new_uninit_slice(size);
-            let slots = Arc::get_mut(&mut u_values).unwrap();
-            for slot in slots.iter_mut() {
-                slot.write(iter.next().unwrap());
-            }
-            m_buckets[bucket_idx].write(Bucket {
-                values: unsafe { u_values.assume_init() },
-            });
+            m_buckets[bucket_idx].write(Self::fill_bucket(iter.by_ref().take(size)));
         }
         FlList {
             buckets: unsafe { u_buckets.assume_init() },
