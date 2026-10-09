@@ -110,6 +110,7 @@ impl FlList {
             values: unsafe { u_values.assume_init() },
         }
     }
+
 }
 
 #[cfg(test)]
@@ -125,7 +126,7 @@ pub mod tests {
     }
 
     pub fn create(from: usize, to: usize) -> FlList {
-        FlList::from_values(create_vec(from, to))
+        FlList::from_vec_values(create_vec(from, to))
     }
 
     pub fn verify(list: &FlList, from: usize, to: usize) {

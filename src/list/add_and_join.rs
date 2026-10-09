@@ -7,20 +7,6 @@ use super::{Bucket, FlList};
 
 impl FlList {
 
-    // TODO: needed???
-    fn fill_buckets(mut items: impl ExactSizeIterator<Item = Value>) -> FlList {
-        let bucket_sizes = FlList::compute_bucket_sizes(items.len());
-
-        let mut u_buckets: Arc<[MaybeUninit<Bucket>]> = Arc::new_uninit_slice(bucket_sizes.len());
-        let m_buckets = Arc::get_mut(&mut u_buckets).unwrap();
-        for (bucket_idx, &size) in bucket_sizes.iter().enumerate() {
-            m_buckets[bucket_idx].write(Self::fill_bucket(items.by_ref().take(size)));
-        }
-        FlList {
-            buckets: unsafe { u_buckets.assume_init() }
-        }
-    }
-
 	pub fn append(&self, list: &FlList) -> FlList {
         if self.is_empty() {
             if list.is_empty() {
@@ -42,22 +28,28 @@ impl FlList {
                     if FlList::needs_reshaping(total_buckets - 1, total_size) {
                         FlList::merge_shape(&self.buckets, &list.buckets, total_size)
                     } else {
-                        //  FplValue[][] buckets = copyOf(shape, shape.length + list.shape.length - 1);
-                        //  FplValue[] bucket = copyOf(lastBucket, lastBucket.length + listFirstBucket.length);
-                        //  arraycopy(listFirstBucket, 0, bucket, lastBucket.length, listFirstBucket.length);
-                        //  buckets[shape.length - 1] = bucket;
-                        //  arraycopy(list.shape, 1, buckets, shape.length, list.shape.length - 1);
-                        //  return new FplList(buckets);
-                    FlList::empty() // TODO, remove
+                        let merged_bucket = Bucket {
+                            values: last_bucket.values.iter()
+                                .chain(first_bucket.values.iter())
+                                .cloned()
+                                .collect(),
+                        };
+                        let buckets: Arc<[Bucket]> = self.buckets.iter().take(self.buckets.len() - 1)
+                            .map(|b| Bucket { values: Arc::clone(&b.values) })
+                            .chain(std::iter::once(merged_bucket))
+                            .chain(list.buckets.iter().skip(1).map(|b| Bucket { values: Arc::clone(&b.values) }))
+                            .collect();
+                        FlList { buckets }
                     }
                 } else {
                     if FlList::needs_reshaping(total_buckets, total_size) {
                         FlList::merge_shape(&self.buckets, &list.buckets, total_size)
                     } else {
-                        //   FplValue[][] buckets = copyOf(shape, shape.length + list.shape.length);
-                        //   arraycopy(list.shape, 0, buckets, shape.length, list.shape.length);
-                        //   return new FplList(buckets);
-                        FlList::empty() // TODO, remove
+                        let buckets: Arc<[Bucket]> = self.buckets.iter()
+                            .chain(list.buckets.iter())
+                            .map(|b| Bucket { values: Arc::clone(&b.values) })
+                            .collect();
+                        FlList { buckets }
                     }
                 }
             }

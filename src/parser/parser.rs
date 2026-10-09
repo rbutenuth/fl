@@ -86,7 +86,7 @@ impl Parser {
         }
 
         self.fetch_next_token(); // skip )
-        Ok(Value::List(FlList::from_values(elements)))
+        Ok(Value::List(FlList::from_vec_values(elements)))
     }
 
     fn fetch_next_token(&mut self) {

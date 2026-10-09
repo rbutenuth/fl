@@ -34,7 +34,7 @@ impl FlList {
         }
     }
 
-    pub fn from_values(elements: Vec<Value>) -> FlList {
+    pub fn from_vec_values(elements: Vec<Value>) -> FlList {
         if elements.len() == 0 {
             Self::empty()
         } else {
@@ -53,6 +53,18 @@ impl FlList {
         }
     }
 
+    fn from_iterator_values(mut items: impl ExactSizeIterator<Item = Value>) -> FlList {
+        let bucket_sizes = FlList::compute_bucket_sizes(items.len());
+
+        let mut u_buckets: Arc<[MaybeUninit<Bucket>]> = Arc::new_uninit_slice(bucket_sizes.len());
+        let m_buckets = Arc::get_mut(&mut u_buckets).unwrap();
+        for (bucket_idx, &size) in bucket_sizes.iter().enumerate() {
+            m_buckets[bucket_idx].write(Self::fill_bucket(items.by_ref().take(size)));
+        }
+        FlList {
+            buckets: unsafe { u_buckets.assume_init() }
+        }
+    }    
     pub fn from_values_with_shape(values: Vec<Value>, bucket_sizes: &[usize]) -> FlList {
         let sum: usize = bucket_sizes.iter().sum();
         assert_eq!(values.len(), sum, "values.len() != sum of bucket_sizes");
@@ -97,7 +109,7 @@ mod tests {
 
     #[test]
     fn test_from_value_vec() {
-        let list = FlList::from_values(create_vec(0, 10));
+        let list = FlList::from_vec_values(create_vec(0, 10));
         assert_eq!(list.len(), 10);
         verify(&list, 0, 10);
     }
