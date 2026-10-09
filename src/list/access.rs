@@ -52,6 +52,9 @@ pub struct FlListIter {
     buckets: Arc<[Bucket]>,
     bucket_idx: usize,
     in_bucket_idx: usize,
+    back_bucket_idx: usize,
+    back_in_bucket_idx: usize,
+    remaining: usize,
     len: usize,
 }
 
@@ -59,17 +62,20 @@ impl Iterator for FlListIter {
     type Item = Value;
 
     fn next(&mut self) -> Option<Self::Item> {
-        while self.bucket_idx < self.buckets.len() {
-            let bucket = &self.buckets[self.bucket_idx];
-            if self.in_bucket_idx < bucket.values.len() {
-                let v = bucket.values[self.in_bucket_idx].clone();
+        if self.remaining > 0 {
+            self.remaining -= 1;
+            let current_values = &self.buckets[self.bucket_idx].values;
+            let result = current_values[self.in_bucket_idx].clone();
+            if self.in_bucket_idx < current_values.len() - 1 {
                 self.in_bucket_idx += 1;
-                return Some(v);
+            } else {
+                self.bucket_idx += 1;
+                self.in_bucket_idx = 0;
             }
-            self.bucket_idx += 1;
-            self.in_bucket_idx = 0;
+            Some(result)
+        } else {
+            None
         }
-        None
     }
 
     fn size_hint(&self) -> (usize, Option<usize>) {
@@ -83,16 +89,41 @@ impl ExactSizeIterator for FlListIter {
     }
 }
 
+impl DoubleEndedIterator for FlListIter {
+    fn next_back(&mut self) -> Option<Self::Item> {
+        if self.remaining > 0 {
+            self.remaining -= 1;
+            let current_values = &self.buckets[self.back_bucket_idx].values;
+            let result = current_values[self.back_in_bucket_idx].clone();
+            if self.back_in_bucket_idx > 0 {
+                self.back_in_bucket_idx -= 1;
+            } else {
+                self.back_bucket_idx -= 1;
+                self.back_in_bucket_idx = self.buckets[self.back_bucket_idx].values.len() - 1;
+            }
+            Some(result)
+        } else {
+            None
+        }
+    }
+}
+
 impl IntoIterator for &FlList {
     type Item = Value;
     type IntoIter = FlListIter;
 
     fn into_iter(self) -> Self::IntoIter {
+        let len = self.len();
+        let last_bucket_idx = self.buckets.len() - 1;
+
         FlListIter {
             buckets: Arc::clone(&self.buckets),
             bucket_idx: 0,
             in_bucket_idx: 0,
-            len: self.len(),
+            back_bucket_idx: last_bucket_idx,
+            back_in_bucket_idx: if last_bucket_idx > 0 { self.buckets[last_bucket_idx].values.len() - 1 } else { 0 },
+            remaining: len,
+            len,
         }
     }
 }

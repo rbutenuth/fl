@@ -57,6 +57,7 @@ impl FlList {
     }
 
     fn merge_shape(left: &Arc<[Bucket]>, right: &Arc<[Bucket]>, total_size: usize) -> FlList {
+
         let bucket_sizes = FlList::compute_bucket_sizes(total_size);
 
         let mut dst_uninit: Vec<Arc<[MaybeUninit<Value>]>> = bucket_sizes
