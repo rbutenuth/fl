@@ -46,20 +46,13 @@ impl FlList {
         Ok(self.buckets.last().unwrap().values.last().unwrap().clone())
     }
 
-    pub fn iter(&self) -> FlListIter {
-        FlListIter {
-            buckets: Arc::clone(&self.buckets),
-            bucket_idx: 0,
-            in_bucket_idx: 0,
-        }
-    }
-
 }
 
 pub struct FlListIter {
     buckets: Arc<[Bucket]>,
     bucket_idx: usize,
     in_bucket_idx: usize,
+    len: usize,
 }
 
 impl Iterator for FlListIter {
@@ -78,6 +71,16 @@ impl Iterator for FlListIter {
         }
         None
     }
+
+    fn size_hint(&self) -> (usize, Option<usize>) {
+        (self.len, Some(self.len))
+    }
+}
+
+impl ExactSizeIterator for FlListIter {
+    fn len(&self) -> usize {
+        self.len
+    }
 }
 
 impl IntoIterator for &FlList {
@@ -85,7 +88,12 @@ impl IntoIterator for &FlList {
     type IntoIter = FlListIter;
 
     fn into_iter(self) -> Self::IntoIter {
-        self.iter()
+        FlListIter {
+            buckets: Arc::clone(&self.buckets),
+            bucket_idx: 0,
+            in_bucket_idx: 0,
+            len: self.len(),
+        }
     }
 }
 

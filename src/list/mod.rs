@@ -137,14 +137,14 @@ pub mod tests {
 
     pub fn verify(list: &FlList, from: usize, to: usize) {
         assert_eq!(to - from, list.len(), "unexpected list length");
-        for (i, v) in list.iter().enumerate() {
+        for (i, v) in list.into_iter().enumerate() {
             match v {
                 Value::Integer(n) => assert_eq!((from + i) as i64, n, "at index {i}"),
                 _ => panic!("expected Value::Integer at index {i}, got {:?}", v),
             }
         }
     }
-    
+
     #[test]
     fn test_empty_has_size_0() {
         assert_eq!(0, FlList::empty().len());
