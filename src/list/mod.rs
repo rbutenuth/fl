@@ -30,6 +30,12 @@ impl Clone for FlList {
 }
 
 impl FlList {
+    pub fn empty() -> FlList {
+        FlList {
+            buckets: unsafe { Arc::new_uninit_slice(0).assume_init() },
+        }
+    }
+
     fn check_not_empty(&self, message: &str) -> Result<(), FlError> {
         if self.buckets.len() > 0 {
             Ok(())
@@ -137,5 +143,10 @@ pub mod tests {
                 _ => panic!("expected Value::Integer at index {i}, got {:?}", v),
             }
         }
+    }
+    
+    #[test]
+    fn test_empty_has_size_0() {
+        assert_eq!(0, FlList::empty().len());
     }
 }
