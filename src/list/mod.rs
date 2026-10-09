@@ -72,6 +72,26 @@ impl FlList {
         bucket_sizes
     }
 
+    /// Build an [`FlList`] directly from an iterator of ready-made [`Bucket`]s,
+    /// allocating the backing `Arc<[Bucket]>` via [`Arc::new_uninit_slice`] so no
+    /// intermediate `Vec` is needed.
+    ///
+    /// If the iterator yields fewer buckets than its reported length, remaining
+    /// slots are filled with empty buckets rather than panicking, so we never
+    /// unwind over uninitialized slots.
+    fn from_buckets(mut buckets: impl ExactSizeIterator<Item = Bucket>) -> FlList {
+        let mut u_buckets: Arc<[MaybeUninit<Bucket>]> = Arc::new_uninit_slice(buckets.len());
+        let slots = Arc::get_mut(&mut u_buckets).unwrap();
+        for slot in slots.iter_mut() {
+            slot.write(buckets.next().unwrap_or_else(|| Bucket {
+                values: unsafe { Arc::new_uninit_slice(0).assume_init() },
+            }));
+        }
+        FlList {
+            buckets: unsafe { u_buckets.assume_init() },
+        }
+    }
+    
     /// Build a [`Bucket`] from `items`, allocating its backing `Arc<[Value]>` directly
     /// via [`Arc::new_uninit_slice`] so no intermediate `Vec` is needed.
     ///
