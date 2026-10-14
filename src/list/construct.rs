@@ -34,17 +34,21 @@ impl FlList {
         } else {
             let bucket_sizes = FlList::compute_bucket_sizes(elements.len());
             let mut iter = elements.into_iter();
-            Self::from_buckets(bucket_sizes.into_iter().map(move |size| {
-                Self::fill_bucket(iter.by_ref().take(size))
-            }))
+            Self::from_buckets(
+                bucket_sizes
+                    .into_iter()
+                    .map(move |size| Self::fill_bucket(iter.by_ref().take(size))),
+            )
         }
     }
 
-    fn from_iterator_values(mut items: impl ExactSizeIterator<Item = Value>) -> FlList {
+    pub fn from_iterator_values(mut items: impl ExactSizeIterator<Item = Value>) -> FlList {
         let bucket_sizes = FlList::compute_bucket_sizes(items.len());
-        Self::from_buckets(bucket_sizes.into_iter().map(move |size| {
-            Self::fill_bucket(items.by_ref().take(size))
-        }))
+        Self::from_buckets(
+            bucket_sizes
+                .into_iter()
+                .map(move |size| Self::fill_bucket(items.by_ref().take(size))),
+        )
     }
 
     pub fn from_values_with_shape(values: Vec<Value>, bucket_sizes: &[usize]) -> FlList {
@@ -52,9 +56,11 @@ impl FlList {
         assert_eq!(values.len(), sum, "values.len() != sum of bucket_sizes");
 
         let mut iter = values.into_iter();
-        Self::from_buckets(bucket_sizes.iter().map(move |&size| {
-            Self::fill_bucket(iter.by_ref().take(size))
-        }))
+        Self::from_buckets(
+            bucket_sizes
+                .iter()
+                .map(move |&size| Self::fill_bucket(iter.by_ref().take(size))),
+        )
     }
 }
 

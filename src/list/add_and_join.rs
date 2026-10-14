@@ -26,7 +26,7 @@ impl FlList {
 
                 if last_bucket.values.len() + first_bucket.values.len() <= BASE_SIZE {
                     if FlList::needs_reshaping(total_buckets - 1, total_size) {
-                        FlList::merge_shape(&self.buckets, &list.buckets, total_size)
+                        Self::merge(self, list, total_size)
                     } else {
                         let merged_bucket = Bucket {
                             values: last_bucket.values.iter()
@@ -43,7 +43,7 @@ impl FlList {
                     }
                 } else {
                     if FlList::needs_reshaping(total_buckets, total_size) {
-                        FlList::merge_shape(&self.buckets, &list.buckets, total_size)
+                        Self::merge(self, list, total_size)
                     } else {
                         let buckets: Arc<[Bucket]> = self.buckets.iter()
                             .chain(list.buckets.iter())
@@ -56,57 +56,13 @@ impl FlList {
         }
     }
 
-    fn merge_shape(left: &Arc<[Bucket]>, right: &Arc<[Bucket]>, total_size: usize) -> FlList {
-
-        let bucket_sizes = FlList::compute_bucket_sizes(total_size);
-
-        let mut dst_uninit: Vec<Arc<[MaybeUninit<Value>]>> = bucket_sizes
-            .iter()
-            .map(|&size| Arc::new_uninit_slice(size))
-            .collect();
-
-        let mut dst_bucket_idx: usize = 0;
-        let mut in_bucket_dst_idx: usize = 0;
-
-        for source in [left, right] {
-            let mut bucket_idx: usize = 0;
-            let mut in_bucket_idx: usize = 0;
-            while bucket_idx < source.len() {
-                let src_len = source[bucket_idx].values.len();
-                let src_remaining = src_len - in_bucket_idx;
-                let dst_remaining = bucket_sizes[dst_bucket_idx] - in_bucket_dst_idx;
-                let length = src_remaining.min(dst_remaining);
-
-                let dst_slots = Arc::get_mut(&mut dst_uninit[dst_bucket_idx]).unwrap();
-                for i in 0..length {
-                    dst_slots[in_bucket_dst_idx + i]
-                        .write(source[bucket_idx].values[in_bucket_idx + i].clone());
-                }
-
-                in_bucket_idx += length;
-                if in_bucket_idx == src_len {
-                    in_bucket_idx = 0;
-                    bucket_idx += 1;
-                }
-                in_bucket_dst_idx += length;
-                if in_bucket_dst_idx == bucket_sizes[dst_bucket_idx] {
-                    in_bucket_dst_idx = 0;
-                    dst_bucket_idx += 1;
-                }
-            }
-        }
-
-        let mut u_buckets: Arc<[MaybeUninit<Bucket>]> = Arc::new_uninit_slice(bucket_sizes.len());
-        let m_buckets = Arc::get_mut(&mut u_buckets).unwrap();
-        for (i, values) in dst_uninit.into_iter().enumerate() {
-            m_buckets[i].write(Bucket {
-                values: unsafe { values.assume_init() },
-            });
-        }
-        FlList {
-            buckets: unsafe { u_buckets.assume_init() }
-        }
+    fn merge(left: &FlList, right: &FlList, total_size: usize) -> FlList {
+        let mut iter = left.into_iter().chain(right.into_iter());
+        Self::from_iterator_values(
+            (0..total_size).map(move |_| iter.next().unwrap_or(Value::Nil))
+        )
     }
+
 }
 
 #[cfg(test)]
