@@ -175,7 +175,7 @@ impl FlList {
             bucket_size = size / number_of_buckets;
         }
         let mut data = vec![0; number_of_buckets];
-        Self::create_buckets(&mut data, 0, number_of_buckets, size);
+        Self::create_buckets(&mut data[..], 0, number_of_buckets, size);
         data
     }
 
