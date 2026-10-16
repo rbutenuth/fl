@@ -1,6 +1,9 @@
 use std::{fs::TryLockError::Error, mem::MaybeUninit, sync::Arc};
 
-use crate::{FlError, list::{BASE_SIZE, FACTOR}};
+use crate::{
+    FlError, Value,
+    list::{BASE_SIZE, FACTOR},
+};
 
 use super::{Bucket, FlList};
 
@@ -15,7 +18,7 @@ impl FlList {
             })))
         } else if self.buckets[0].values.len() <= BASE_SIZE + 1 {
             let new_first = Bucket {
-                values: self.buckets[0].values[1..].iter().cloned().collect(),
+                values: Arc::<[Value]>::from(&self.buckets[0].values[1..]),
             };
             Ok(Self::from_buckets_sized(
                 self.buckets.len(),
@@ -24,69 +27,41 @@ impl FlList {
                 })),
             ))
         } else {
-			/*
-			   // First bucket is too large, split it according "ideal" shape
-			   int count = shape[0].length - 1;
-			   int additionalBuckets = -1;
-			   int bucketFillSize = BASE_SIZE / 2;
-			   while (count > 0) {
-				   additionalBuckets++;
-				   count -= bucketFillSize;
-				   bucketFillSize *= FACTOR;
-			   }
-			   FplValue[][] bucketsDst = new FplValue[shape.length + additionalBuckets][];
-			   bucketFillSize = BASE_SIZE / 2;
-			   bucketsDst[0] = copyOfRange(shape[0], 1, 1 + bucketFillSize);
-			   int dstIdx = 1;
-			   count = shape[0].length - 1 - bucketFillSize;
-			   int inBucketIdx = bucketFillSize + 1;
-			   while (count > 0) {
-				   bucketFillSize *= FACTOR;
-				   if (bucketFillSize > count) {
-					   bucketFillSize = count;
-				   }
-				   bucketsDst[dstIdx] = copyOfRange(shape[0], inBucketIdx, inBucketIdx + bucketFillSize);
-				   dstIdx++;
-				   inBucketIdx += bucketFillSize;
-				   count -= bucketFillSize;
-			   }
-			   int srcIdx = 1;
-			   while (dstIdx < bucketsDst.length) {
-				   bucketsDst[dstIdx++] = shape[srcIdx++];
-			   }
-			   return new FplList(bucketsDst);
-			*/
             let first_values = &self.buckets[0].values;
             let count = first_values.len() - 1;
+            let num_split = Self::split_sizes(count).count();
+            let total_buckets = num_split + self.buckets.len() - 1;
             let mut src_idx: usize = 1;
-            let split_buckets = std::iter::successors(
-                Some(BASE_SIZE / 2),
-                |&s| s.checked_mul(FACTOR),
-            )
-            .scan(count, |remaining, size| {
-                if *remaining == 0 {
+            Ok(Self::from_buckets_sized(
+                total_buckets,
+                Self::split_sizes(count)
+                    .map(move |size| {
+                        let bucket = Bucket {
+                            values: Arc::<[Value]>::from(&first_values[src_idx..src_idx + size]),
+                        };
+                        src_idx += size;
+                        bucket
+                    })
+                    .chain(self.buckets[1..].iter().map(|b| Bucket {
+                        values: Arc::clone(&b.values),
+                    })),
+            ))
+        }
+    }
+
+    fn split_sizes(count: usize) -> impl Iterator<Item = usize> {
+        std::iter::successors(Some(BASE_SIZE / 2), |&s| s.checked_mul(FACTOR)).scan(
+            count,
+            |rem, size| {
+                if *rem == 0 {
                     None
                 } else {
-                    let take = size.min(*remaining);
-                    *remaining -= take;
+                    let take = size.min(*rem);
+                    *rem -= take;
                     Some(take)
                 }
-            })
-            .map(move |size| {
-                let bucket = Bucket {
-                    values: first_values[src_idx..src_idx + size].iter().cloned().collect(),
-                };
-                src_idx += size;
-                bucket
-            });
-
-            let buckets: Arc<[Bucket]> = split_buckets
-                .chain(self.buckets[1..].iter().map(|b| Bucket {
-                    values: Arc::clone(&b.values),
-                }))
-                .collect();
-            Ok(FlList { buckets })
-        }
+            },
+        )
     }
 }
 
