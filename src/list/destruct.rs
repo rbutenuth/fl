@@ -49,6 +49,11 @@ impl FlList {
         }
     }
 
+    pub fn remove_last(&self) -> Result<FlList, FlError> {
+        self.check_not_empty("remove_last on empty list")?;
+		Ok(Self::from_iterator_values(self.into_iter().take(self.len() - 1)))
+	}
+
     fn split_sizes(count: usize) -> impl Iterator<Item = usize> {
         std::iter::successors(Some(BASE_SIZE / 2), |&s| s.checked_mul(FACTOR)).scan(
             count,
@@ -109,5 +114,43 @@ mod tests {
         let rest = list.remove_first().unwrap();
         assert_eq!(1, rest.len());
         assert_eq!(Value::Integer(2), rest.get(0).unwrap());
+    }
+
+    #[test]
+    fn test_remove_last_size_one() {
+        let list = FlList::from_value(Value::Text(Arc::from("")));
+        let rest = list.remove_last().unwrap();
+        assert_eq!(0, rest.len());
+    }
+
+    #[test]
+    fn test_remove_last_size_two() {
+        let list =
+            FlList::from_value(Value::Integer(1)).append(&FlList::from_value(Value::Integer(2)));
+        let rest = list.remove_last().unwrap();
+        assert_eq!(1, rest.len());
+        assert_eq!(Value::Integer(1), rest.get(0).unwrap());
+    }
+
+    #[test]
+    fn test_remove_last_size_hundred() {
+        let list = create(0, 100);
+        let rest = list.remove_last().unwrap();
+        verify(&rest, 0, 99);
+    }
+
+    #[test]
+    fn test_remove_last_size_fifty_append_fifty() {
+        let list = create(0, 50).append(&create(50, 100));
+        let rest = list.remove_last().unwrap();
+        verify(&rest, 0, 99);
+    }
+
+    #[test]
+    fn test_remove_last_size_two_from_append() {
+        let list = create(1, 2).append(&create(2, 3));
+        let rest = list.remove_last().unwrap();
+        assert_eq!(1, rest.len());
+        assert_eq!(Value::Integer(1), rest.get(0).unwrap());
     }
 }
