@@ -2,8 +2,8 @@ use std::{error::Error, fmt, sync::Arc };
 
 use list::FlList;
 
-mod list;
-mod parser;
+pub mod list;
+pub mod parser;
 
 
 #[derive(Debug)]
