@@ -95,11 +95,13 @@ impl DoubleEndedIterator for FlListIter {
             self.remaining -= 1;
             let current_values = &self.buckets[self.back_bucket_idx].values;
             let result = current_values[self.back_in_bucket_idx].clone();
-            if self.back_in_bucket_idx > 0 {
-                self.back_in_bucket_idx -= 1;
-            } else {
-                self.back_bucket_idx -= 1;
-                self.back_in_bucket_idx = self.buckets[self.back_bucket_idx].values.len() - 1;
+            if self.remaining > 0 {
+                if self.back_in_bucket_idx > 0 {
+                    self.back_in_bucket_idx -= 1;
+                } else {
+                    self.back_bucket_idx -= 1;
+                    self.back_in_bucket_idx = self.buckets[self.back_bucket_idx].values.len() - 1;
+                }
             }
             Some(result)
         } else {
@@ -114,14 +116,19 @@ impl IntoIterator for &FlList {
 
     fn into_iter(self) -> Self::IntoIter {
         let len = self.len();
-        let last_bucket_idx = self.buckets.len() - 1;
+        let (back_bucket_idx, back_in_bucket_idx) = if self.buckets.is_empty() {
+            (0, 0)
+        } else {
+            let last = self.buckets.len() - 1;
+            (last, self.buckets[last].values.len() - 1)
+        };
 
         FlListIter {
             buckets: Arc::clone(&self.buckets),
             bucket_idx: 0,
             in_bucket_idx: 0,
-            back_bucket_idx: last_bucket_idx,
-            back_in_bucket_idx: if last_bucket_idx > 0 { self.buckets[last_bucket_idx].values.len() - 1 } else { 0 },
+            back_bucket_idx,
+            back_in_bucket_idx,
             remaining: len,
             len,
         }

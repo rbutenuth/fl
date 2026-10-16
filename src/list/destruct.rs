@@ -8,31 +8,9 @@ impl FlList {
 
 	pub fn remove_first(&self) -> Result<FlList, FlError> {
 		self.check_not_empty("remove_first on empty list")?;
-		if self.buckets[0].values.iter().len() == 1 {
-
-		}
-        let u_buckets: Arc<[MaybeUninit<Bucket>]> = Arc::new_uninit_slice(1);
-
-        Ok(FlList {
-            buckets: unsafe { u_buckets.assume_init() },
-        }
-)
+		Ok(Self::from_iterator_values(self.into_iter().skip(1)))
 	}
 /*
-        let mut u_values: Arc<[MaybeUninit<Value>]> = Arc::new_uninit_slice(1);
-
-        let values = Arc::get_mut(&mut u_values).unwrap();
-        values[0].write(value);
-        let bucket = Bucket {
-            values: unsafe { u_values.assume_init() },
-        };
-
-        let mut u_buckets: Arc<[MaybeUninit<Bucket>]> = Arc::new_uninit_slice(1);
-        let m_buckets = Arc::get_mut(&mut u_buckets).unwrap();
-        m_buckets[0].write(bucket);
-        FlList {
-            buckets: unsafe { u_buckets.assume_init() },
-        }
 	public FplList removeFirst() throws EvaluationException {
 		checkNotEmpty();
 		if (shape[0].length == 1) {
@@ -81,6 +59,47 @@ impl FlList {
 
 #[cfg(test)]
 mod tests {
-//    use super::*;
-//    use super::super::tests::{create, verify};
+    use std::sync::Arc;
+
+    use crate::Value;
+    use super::*;
+    use super::super::tests::{create, verify};
+
+    #[test]
+    fn test_remove_first_size_one() {
+        let list = FlList::from_value(Value::Text(Arc::from("")));
+        let rest = list.remove_first().unwrap();
+        assert_eq!(0, rest.len());
+    }
+
+    #[test]
+    fn test_remove_first_size_two() {
+        let list = FlList::from_value(Value::Integer(1))
+            .append(&FlList::from_value(Value::Integer(2)));
+        let rest = list.remove_first().unwrap();
+        assert_eq!(1, rest.len());
+        assert_eq!(Value::Integer(2), rest.get(0).unwrap());
+    }
+
+    #[test]
+    fn test_remove_first_size_hundred() {
+        let list = create(0, 100);
+        let rest = list.remove_first().unwrap();
+        verify(&rest, 1, 100);
+    }
+
+    #[test]
+    fn test_remove_first_size_fifty_append_fifty() {
+        let list = create(0, 50).append(&create(50, 100));
+        let rest = list.remove_first().unwrap();
+        verify(&rest, 1, 100);
+    }
+
+    #[test]
+    fn test_remove_first_size_two_from_append() {
+        let list = create(1, 2).append(&create(2, 3));
+        let rest = list.remove_first().unwrap();
+        assert_eq!(1, rest.len());
+        assert_eq!(Value::Integer(2), rest.get(0).unwrap());
+    }
 }

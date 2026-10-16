@@ -143,6 +143,12 @@ pub mod tests {
                 _ => panic!("expected Value::Integer at index {i}, got {:?}", v),
             }
         }
+        for (i, v) in list.into_iter().rev().enumerate() {
+            match v {
+                Value::Integer(n) => assert_eq!((to - 1 - i) as i64, n, "at index {i}"),
+                _ => panic!("expected Value::Integer at index {i}, got {:?}", v),
+            }
+        }
     }
 
     #[test]
