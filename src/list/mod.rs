@@ -132,7 +132,8 @@ pub mod tests {
     }
 
     pub fn create(from: usize, to: usize) -> FlList {
-        FlList::from_vec_values(create_vec(from, to))
+        let shape: Vec<usize> = vec![to - from];
+        FlList::from_values_with_shape(create_vec(from, to), &shape)
     }
 
     pub fn verify(list: &FlList, from: usize, to: usize) {
