@@ -29,12 +29,13 @@ impl FlList {
         } else {
             let first_values = &self.buckets[0].values;
             let count = first_values.len() - 1;
-            let num_split = Self::split_sizes(count).count();
-            let total_buckets = num_split + self.buckets.len() - 1;
+            let split_sizes = Self::split_sizes(count);
+            let total_buckets = split_sizes.len() + self.buckets.len() - 1;
             let mut src_idx: usize = 1;
             Ok(Self::from_buckets_sized(
                 total_buckets,
-                Self::split_sizes(count)
+                split_sizes
+                    .into_iter()
                     .map(move |size| {
                         let bucket = Bucket {
                             values: Arc::<[Value]>::from(&first_values[src_idx..src_idx + size]),
@@ -51,13 +52,53 @@ impl FlList {
 
     pub fn remove_last(&self) -> Result<FlList, FlError> {
         self.check_not_empty("remove_last on empty list")?;
-		Ok(Self::from_iterator_values(self.into_iter().take(self.len() - 1)))
-	}
+        let last_idx = self.buckets.len() - 1;
+        let last_values = &self.buckets[last_idx].values;
+        if last_values.len() == 1 {
+            Ok(Self::from_buckets(self.buckets[..last_idx].iter().map(|b| {
+                Bucket {
+                    values: Arc::clone(&b.values),
+                }
+            })))
+        } else if last_values.len() <= BASE_SIZE + 1 {
+            let new_last = Bucket {
+                values: Arc::<[Value]>::from(&last_values[..last_values.len() - 1]),
+            };
+            Ok(Self::from_buckets_sized(
+                self.buckets.len(),
+                self.buckets[..last_idx]
+                    .iter()
+                    .map(|b| Bucket {
+                        values: Arc::clone(&b.values),
+                    })
+                    .chain(std::iter::once(new_last)),
+            ))
+        } else {
+            let count = last_values.len() - 1;
+            let split_sizes = Self::split_sizes(count);
+            let total_buckets = last_idx + split_sizes.len();
+            let mut src_idx: usize = 0;
+            Ok(Self::from_buckets_sized(
+                total_buckets,
+                self.buckets[..last_idx]
+                    .iter()
+                    .map(|b| Bucket {
+                        values: Arc::clone(&b.values),
+                    })
+                    .chain(split_sizes.into_iter().rev().map(move |size| {
+                        let bucket = Bucket {
+                            values: Arc::<[Value]>::from(&last_values[src_idx..src_idx + size]),
+                        };
+                        src_idx += size;
+                        bucket
+                    })),
+            ))
+        }
+    }
 
-    fn split_sizes(count: usize) -> impl Iterator<Item = usize> {
-        std::iter::successors(Some(BASE_SIZE / 2), |&s| s.checked_mul(FACTOR)).scan(
-            count,
-            |rem, size| {
+    fn split_sizes(count: usize) -> Vec<usize> {
+        std::iter::successors(Some(BASE_SIZE / 2), |&s| s.checked_mul(FACTOR))
+            .scan(count, |rem, size| {
                 if *rem == 0 {
                     None
                 } else {
@@ -65,8 +106,8 @@ impl FlList {
                     *rem -= take;
                     Some(take)
                 }
-            },
-        )
+            })
+            .collect()
     }
 }
 
