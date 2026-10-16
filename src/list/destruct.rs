@@ -190,6 +190,12 @@ impl FlList {
             Self::create_buckets(data, offset + next, next, upper);
         }
     }
+
+    // TODO
+    // public FplList set(int position, FplValue element) throws EvaluationException 
+    // public FplList replaceElements(int from, FplList patch, int numReplaced) throws EvaluationException
+    // public FplList subList(int fromIndex, int toIndex) throws EvaluationException
+
 }
 
 #[cfg(test)]
