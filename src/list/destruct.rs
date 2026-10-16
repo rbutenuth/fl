@@ -191,10 +191,152 @@ impl FlList {
         }
     }
 
+    pub fn sub_list(&self, from_index: usize, to_index: usize) -> Result<FlList, FlError> {
+        if from_index > to_index {
+            return Err(FlError::new("from_index > to_index"));
+        }
+        if from_index == to_index {
+            return Ok(Self::empty());
+        }
+        if self.is_empty() {
+            return Err(FlError::new("from_index >= size"));
+        }
+
+        // Locate first bucket containing `from_index`.
+        let mut bucket_from_idx = 0;
+        let mut index = 0;
+        while index + self.buckets[bucket_from_idx].values.len() <= from_index {
+            index += self.buckets[bucket_from_idx].values.len();
+            bucket_from_idx += 1;
+            if bucket_from_idx >= self.buckets.len() {
+                return Err(FlError::new("from_index >= size"));
+            }
+        }
+        let in_bucket_from_idx = from_index - index;
+        let mut bucket_to_idx = bucket_from_idx;
+
+        // Locate last bucket containing `to_index - 1`.
+        while index + self.buckets[bucket_to_idx].values.len() <= to_index - 1 {
+            index += self.buckets[bucket_to_idx].values.len();
+            bucket_to_idx += 1;
+            if bucket_to_idx >= self.buckets.len() {
+                return Err(FlError::new("to_index > size"));
+            }
+        }
+        let in_bucket_to_idx = to_index - index;
+
+        // Full-list optimization: share the backing Arc<[Bucket]>.
+        if from_index == 0
+            && bucket_to_idx == self.buckets.len() - 1
+            && in_bucket_to_idx == self.buckets[bucket_to_idx].values.len() {
+            return Ok(self.clone());
+        }
+
+        if bucket_from_idx == bucket_to_idx {
+            return Ok(Self::sub_list_from_one_large_array(
+                &self.buckets[bucket_from_idx].values,
+                in_bucket_from_idx,
+                in_bucket_to_idx,
+            ));
+        }
+
+        // Multi-bucket case: left + center + right.
+        let left = Self::left_sub_buckets(&self.buckets[bucket_from_idx].values, in_bucket_from_idx);
+        let right = Self::right_sub_buckets(&self.buckets[bucket_to_idx].values, in_bucket_to_idx);
+        let center_count = bucket_to_idx - bucket_from_idx - 1;
+        let total = left.len() + center_count + right.len();
+        Ok(Self::from_buckets_sized(
+            total,
+            left.into_iter()
+                .chain(
+                    self.buckets[bucket_from_idx + 1..bucket_to_idx]
+                        .iter()
+                        .map(|b| Bucket {
+                            values: Arc::clone(&b.values),
+                        }),
+                )
+                .chain(right.into_iter()),
+        ))
+    }
+
+    fn sub_list_from_one_large_array(bucket: &[Value], first: usize, behind_last: usize) -> FlList {
+        let size = behind_last - first;
+        if size <= BASE_SIZE {
+            Self::from_buckets(std::iter::once(Bucket {
+                values: Arc::<[Value]>::from(&bucket[first..behind_last]),
+            }))
+        } else {
+            let bucket_sizes = Self::compute_bucket_sizes(size);
+            let num = bucket_sizes.len();
+            let mut idx = first;
+            Self::from_buckets_sized(
+                num,
+                bucket_sizes.into_iter().map(move |sz| {
+                    let b = Bucket {
+                        values: Arc::<[Value]>::from(&bucket[idx..idx + sz]),
+                    };
+                    idx += sz;
+                    b
+                }),
+            )
+        }
+    }
+
+    fn left_sub_buckets(bucket: &Arc<[Value]>, in_from: usize) -> Vec<Bucket> {
+        if in_from == 0 {
+            return vec![Bucket {
+                values: Arc::clone(bucket),
+            }];
+        }
+        let mut result = Vec::new();
+        let mut bucket_size = 3 * BASE_SIZE / 4;
+        let mut in_idx = in_from;
+        let mut rest = bucket.len() - in_from;
+        while rest > bucket_size {
+            let size = std::cmp::min(bucket_size / 2, rest);
+            result.push(Bucket {
+                values: Arc::<[Value]>::from(&bucket[in_idx..in_idx + size]),
+            });
+            in_idx += size;
+            rest -= size;
+            bucket_size *= FACTOR;
+        }
+        result.push(Bucket {
+            values: Arc::<[Value]>::from(&bucket[in_idx..in_idx + rest]),
+        });
+        result
+    }
+
+    fn right_sub_buckets(bucket: &Arc<[Value]>, in_to: usize) -> Vec<Bucket> {
+        if in_to == bucket.len() {
+            return vec![Bucket {
+                values: Arc::clone(bucket),
+            }];
+        }
+        // Build from the right end backward, then reverse into natural order.
+        let mut result = Vec::new();
+        let mut bucket_size = 3 * BASE_SIZE / 4;
+        let mut in_idx = in_to;
+        let mut rest = in_to;
+        while rest > bucket_size {
+            let size = std::cmp::min(bucket_size / 2, rest);
+            result.push(Bucket {
+                values: Arc::<[Value]>::from(&bucket[in_idx - size..in_idx]),
+            });
+            in_idx -= size;
+            rest -= size;
+            bucket_size *= FACTOR;
+        }
+        result.push(Bucket {
+            values: Arc::<[Value]>::from(&bucket[..rest]),
+        });
+        result.reverse();
+        result
+    }
+
     // TODO
-    // public FplList set(int position, FplValue element) throws EvaluationException 
+    // public FplList set(int position, FplValue element) throws EvaluationException
     // public FplList replaceElements(int from, FplList patch, int numReplaced) throws EvaluationException
-    // public FplList subList(int fromIndex, int toIndex) throws EvaluationException
 
 }
 
@@ -367,5 +509,128 @@ mod tests {
         upper = upper.upper_half();
         verify(&upper, 750_000, 1_000_000);
         assert_eq!(16, upper.buckets.len());
+    }
+
+    #[test]
+    fn test_sub_list_bad_range() {
+        let list = FlList::empty();
+        assert!(list.sub_list(10, 0).is_err());
+    }
+
+    #[test]
+    fn test_sub_list_from_equals_to_results_in_empty() {
+        let list = create(0, 10);
+        assert_eq!(0, list.sub_list(3, 3).unwrap().len());
+    }
+
+    #[test]
+    fn test_large_sub_list_end_beyond_end_of_list() {
+        let list = create(1, 11);
+        assert!(list.sub_list(3, 12).is_err());
+    }
+
+    #[test]
+    fn test_small_sub_list_end_beyond_end_of_list() {
+        let list = create(1, 8);
+        assert!(list.sub_list(3, 8).is_err());
+    }
+
+    #[test]
+    fn test_sub_list_start_beyond_end_of_list() {
+        let list = FlList::from_values_with_shape(create_vec(0, 16), &[4, 8, 4]);
+        assert!(list.sub_list(16, 17).is_err());
+    }
+
+    #[test]
+    fn test_sub_list_complete_of_short_list() {
+        let list = create(1, 7);
+        let sub = list.sub_list(0, 6).unwrap();
+        assert!(Arc::ptr_eq(&list.buckets, &sub.buckets));
+    }
+
+    #[test]
+    fn test_sub_list_complete_of_large_list() {
+        let list = FlList::from_values_with_shape(create_vec(1, 24), &[4, 15, 4]);
+        let sub = list.sub_list(0, 23).unwrap();
+        assert!(Arc::ptr_eq(&list.buckets, &sub.buckets));
+    }
+
+    #[test]
+    fn test_sub_list_of_short_list() {
+        let list = create(1, 11).sub_list(3, 5).unwrap();
+        verify(&list, 4, 6);
+    }
+
+    #[test]
+    fn test_sub_list_start_of_short_list() {
+        let list = create(0, 7).sub_list(0, 6).unwrap();
+        verify(&list, 0, 6);
+    }
+
+    #[test]
+    fn test_sub_list_end_of_short_list() {
+        let list = create(0, 7).sub_list(1, 7).unwrap();
+        verify(&list, 1, 7);
+    }
+
+    #[test]
+    fn test_sub_list_from_one_small_bucket() {
+        let list = FlList::from_values_with_shape(create_vec(0, 16), &[4, 8, 4]);
+        verify(&list.sub_list(5, 7).unwrap(), 5, 7);
+    }
+
+    #[test]
+    fn test_sub_list_buckets_start() {
+        let list = FlList::from_values_with_shape(create_vec(0, 16), &[4, 8, 4]);
+        verify(&list.sub_list(0, 7).unwrap(), 0, 7);
+    }
+
+    #[test]
+    fn test_sub_list_buckets_within() {
+        let list = FlList::from_values_with_shape(create_vec(0, 16), &[4, 8, 4]);
+        verify(&list.sub_list(2, 7).unwrap(), 2, 7);
+    }
+
+    #[test]
+    fn test_sub_list_buckets_start_with_part_from_last_bucket() {
+        let list = FlList::from_values_with_shape(create_vec(0, 16), &[4, 8, 4]);
+        verify(&list.sub_list(0, 13).unwrap(), 0, 13);
+    }
+
+    #[test]
+    fn test_sub_list_buckets_end() {
+        let list = FlList::from_values_with_shape(create_vec(0, 16), &[4, 8, 4]);
+        verify(&list.sub_list(3, 16).unwrap(), 3, 16);
+    }
+
+    #[test]
+    fn test_sub_list_from_one_large_bucket() {
+        let list = FlList::from_values_with_shape(create_vec(0, 40), &[4, 32, 4]);
+        verify(&list.sub_list(5, 17).unwrap(), 5, 17);
+    }
+
+    #[test]
+    fn test_sub_list_from_several_large_buckets() {
+        let list = FlList::from_values_with_shape(create_vec(0, 100), &[20, 20, 20, 20, 20]);
+        verify(&list, 0, 100);
+        verify(&list.sub_list(5, 95).unwrap(), 5, 95);
+    }
+
+    #[test]
+    fn test_sub_list_from_shape() {
+        let list = FlList::from_values_with_shape(create_vec(0, 30), &[4, 22, 4]);
+        verify(&list.sub_list(0, 5).unwrap(), 0, 5);
+    }
+
+    #[test]
+    fn test_sub_list_from_special_shape1() {
+        let list = FlList::from_values_with_shape(create_vec(0, 45), &[3, 37, 5]);
+        verify(&list.sub_list(0, 38).unwrap(), 0, 38);
+    }
+
+    #[test]
+    fn test_sub_list_from_special_shape2() {
+        let list = FlList::from_values_with_shape(create_vec(0, 10), &[2, 8]);
+        verify(&list.sub_list(0, 9).unwrap(), 0, 9);
     }
 }
