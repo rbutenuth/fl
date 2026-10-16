@@ -28,28 +28,29 @@ impl FlList {
                     if FlList::needs_reshaping(total_buckets - 1, total_size) {
                         Self::merge(self, list, total_size)
                     } else {
-                        let merged_bucket = Bucket {
-                            values: last_bucket.values.iter()
-                                .chain(first_bucket.values.iter())
-                                .cloned()
-                                .collect(),
-                        };
-                        let buckets: Arc<[Bucket]> = self.buckets.iter().take(self.buckets.len() - 1)
-                            .map(|b| Bucket { values: Arc::clone(&b.values) })
-                            .chain(std::iter::once(merged_bucket))
-                            .chain(list.buckets.iter().skip(1).map(|b| Bucket { values: Arc::clone(&b.values) }))
-                            .collect();
-                        FlList { buckets }
+                        let len = last_bucket.values.len() + first_bucket.values.len();
+                        let merged_bucket = Self::fill_bucket_sized(
+                            len,
+                            last_bucket.values.iter().chain(first_bucket.values.iter()).cloned(),
+                        );
+                        Self::from_buckets_sized(
+                            total_buckets - 1,
+                            self.buckets.iter().take(self.buckets.len() - 1)
+                                .map(|b| Bucket { values: Arc::clone(&b.values) })
+                                .chain(std::iter::once(merged_bucket))
+                                .chain(list.buckets.iter().skip(1).map(|b| Bucket { values: Arc::clone(&b.values) })),
+                        )
                     }
                 } else {
                     if FlList::needs_reshaping(total_buckets, total_size) {
                         Self::merge(self, list, total_size)
                     } else {
-                        let buckets: Arc<[Bucket]> = self.buckets.iter()
-                            .chain(list.buckets.iter())
-                            .map(|b| Bucket { values: Arc::clone(&b.values) })
-                            .collect();
-                        FlList { buckets }
+                        Self::from_buckets_sized(
+                            total_buckets,
+                            self.buckets.iter()
+                                .chain(list.buckets.iter())
+                                .map(|b| Bucket { values: Arc::clone(&b.values) }),
+                        )
                     }
                 }
             }

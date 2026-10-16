@@ -85,8 +85,13 @@ impl FlList {
     /// If the iterator yields fewer buckets than its reported length, remaining
     /// slots are filled with empty buckets rather than panicking, so we never
     /// unwind over uninitialized slots.
-    fn from_buckets(mut buckets: impl ExactSizeIterator<Item = Bucket>) -> FlList {
-        let mut u_buckets: Arc<[MaybeUninit<Bucket>]> = Arc::new_uninit_slice(buckets.len());
+    fn from_buckets(buckets: impl ExactSizeIterator<Item = Bucket>) -> FlList {
+        let len = buckets.len();
+        Self::from_buckets_sized(len, buckets)
+    }
+
+    fn from_buckets_sized(len: usize, mut buckets: impl Iterator<Item = Bucket>) -> FlList {
+        let mut u_buckets: Arc<[MaybeUninit<Bucket>]> = Arc::new_uninit_slice(len);
         let slots = Arc::get_mut(&mut u_buckets).unwrap();
         for slot in slots.iter_mut() {
             slot.write(buckets.next().unwrap_or_else(|| Bucket {
@@ -104,8 +109,13 @@ impl FlList {
     /// If `items` yields fewer
     /// values than its reported length, remaining slots are filled with [`Value::Nil`]
     /// rather than panicking.
-    fn fill_bucket(mut items: impl ExactSizeIterator<Item = Value>) -> Bucket {
-        let mut u_values: Arc<[MaybeUninit<Value>]> = Arc::new_uninit_slice(items.len());
+    fn fill_bucket(items: impl ExactSizeIterator<Item = Value>) -> Bucket {
+        let len = items.len();
+        Self::fill_bucket_sized(len, items)
+    }
+
+    fn fill_bucket_sized(len: usize, mut items: impl Iterator<Item = Value>) -> Bucket {
+        let mut u_values: Arc<[MaybeUninit<Value>]> = Arc::new_uninit_slice(len);
         let slots = Arc::get_mut(&mut u_values).unwrap();
         for slot in slots.iter_mut() {
             // The "or" case should never happen, but this way we avoid a panic,

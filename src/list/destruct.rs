@@ -17,12 +17,12 @@ impl FlList {
             let new_first = Bucket {
                 values: self.buckets[0].values[1..].iter().cloned().collect(),
             };
-            let buckets: Arc<[Bucket]> = std::iter::once(new_first)
-                .chain(self.buckets[1..].iter().map(|b| Bucket {
+            Ok(Self::from_buckets_sized(
+                self.buckets.len(),
+                std::iter::once(new_first).chain(self.buckets[1..].iter().map(|b| Bucket {
                     values: Arc::clone(&b.values),
-                }))
-                .collect();
-            Ok(FlList { buckets })
+                })),
+            ))
         } else {
 			/*
 			   // First bucket is too large, split it according "ideal" shape
