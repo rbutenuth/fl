@@ -441,7 +441,25 @@ impl FlList {
         }
     }
 
-    // TODO public FplList replaceElements(int from, FplList patch, int numReplaced) throws EvaluationException
+    /// Replace `num_replaced` elements of `self` starting at `from` with the elements of `patch`.
+    pub fn replace_elements(
+        &self,
+        from: usize,
+        patch: &FlList,
+        num_replaced: usize,
+    ) -> Result<FlList, FlError> {
+        let old_size = self.len();
+        if from + num_replaced > old_size {
+            return Err(FlError::new("from + num_replaced > size"));
+        }
+        if old_size == 0 {
+            return Ok(patch.clone());
+        }
+        let head = self.sub_list(0, from)?;
+        let tail = self.sub_list(from + num_replaced, old_size)?;
+        Ok(head.append(patch).append(&tail))
+    }
+
 }
 
 #[cfg(test)]
@@ -854,5 +872,80 @@ mod tests {
         .set(99, Value::Integer(-1))
         .unwrap();
         check_updated(99, 100, &list);
+    }
+/*
+	private void checkPatched(FplList original, FplList result, int from, FplList patch, int numReplaced) {
+		// check original is still unmodified (we assume it from 0..size)
+		check(original, 0, original.size());
+		int patchSize = patch.size();
+		int resultSize = original.size() + patchSize - numReplaced;
+		assertEquals(resultSize, result.size());
+		for (int i = 0; i < resultSize; i++) {
+			if (i < from) {
+				assertEquals(original.get(i), result.get(i), "position: " + i);
+			} else if (i < from + patchSize) {
+				assertEquals(patch.get(i - from), result.get(i), "position: " + i);
+			} else {
+				assertEquals(original.get(i + numReplaced - patchSize), result.get(i), "position: " + i);
+			}
+		}
+	}
+ */
+    fn check_values(list: &FlList, expected: &[i64]) {
+        assert_eq!(expected.len(), list.len(), "length mismatch");
+        for (i, &exp) in expected.iter().enumerate() {
+            assert_eq!(
+                Value::Integer(exp),
+                list.get(i as isize).unwrap(),
+                "at index {}",
+                i
+            );
+        }
+    }
+
+    #[test]
+    fn test_patch_on_empty_list() {
+        let result = FlList::empty()
+            .replace_elements(0, &create(1, 3), 0)
+            .unwrap();
+        verify(&result, 1, 3);
+    }
+
+    #[test]
+    fn test_from_plus_num_replaced_beyond_end_throws() {
+        let list = create(0, 5);
+        assert!(list.replace_elements(0, &FlList::empty(), 6).is_err());
+    }
+
+    #[test]
+    fn test_patch_all() {
+        let original = create(0, 5);
+        let patch = create(6, 10);
+        let result = original.replace_elements(0, &patch, 5).unwrap();
+        verify(&result, 6, 10);
+    }
+
+    #[test]
+    fn test_patch_at_beginning() {
+        let original = create(0, 5);
+        let patch = create(6, 9);
+        let result = original.replace_elements(0, &patch, 2).unwrap();
+        check_values(&result, &[6, 7, 8, 2, 3, 4]);
+    }
+
+    #[test]
+    fn test_patch_at_end() {
+        let original = create(0, 5);
+        let patch = create(6, 9);
+        let result = original.replace_elements(3, &patch, 2).unwrap();
+        check_values(&result, &[0, 1, 2, 6, 7, 8]);
+    }
+
+    #[test]
+    fn test_patch_in_the_middle() {
+        let original = create(0, 6);
+        let patch = create(6, 8);
+        let result = original.replace_elements(3, &patch, 2).unwrap();
+        check_values(&result, &[0, 1, 2, 6, 7, 5]);
     }
 }
