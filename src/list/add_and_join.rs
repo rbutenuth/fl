@@ -1,7 +1,6 @@
-use std::mem::MaybeUninit;
 use std::sync::Arc;
 
-use crate::{FlError, Value, list::{BASE_SIZE, FACTOR}};
+use crate::{Value, list::{BASE_SIZE, FACTOR}};
 
 use super::{Bucket, FlList};
 

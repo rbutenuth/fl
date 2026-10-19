@@ -1,7 +1,9 @@
 use std::{error::Error, fmt, sync::Arc };
 
 use list::FlList;
+use interpreter::Scope;
 
+pub mod interpreter;
 pub mod list;
 pub mod parser;
 
@@ -48,6 +50,13 @@ impl PartialEq for Value {
     }
 }
 
+impl Value {
+    pub fn evaluate(&self, _scope: &Scope) -> Value {
+        println!("evaluating {:?}", self);
+        
+        Value::Nil
+    }
+}
 
 #[derive(Debug, PartialEq)]
 pub struct FlError{

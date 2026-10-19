@@ -1,5 +1,6 @@
 use std::{env, fs, process};
 
+use fl::interpreter::Engine;
 use fl::parser::Parser;
 
 fn main() {
@@ -8,6 +9,9 @@ fn main() {
         eprintln!("usage: fl <file>...");
         process::exit(1);
     }
+
+    let engine = Engine::new();
+
     for file in &files {
         let source = match fs::read_to_string(file) {
             Ok(s) => s,
@@ -16,8 +20,24 @@ fn main() {
                 process::exit(1);
             }
         };
-        for value in Parser::parser_from_str(&source) {
-            println!("{:?}", value);
+        for value_or_err in Parser::parser_from_str(&source) {
+            match value_or_err {
+                Ok(value) => println!("{:?}", engine.evaluate(value)),
+                Err(e) => { println!("{}", e); break }
+            }
         }
     }
 }
+
+
+#[cfg(test)]
+pub mod tests {
+    use super::*;
+
+    #[test]
+    fn create() {
+        let engine = Engine::new();
+    }
+
+}
+
