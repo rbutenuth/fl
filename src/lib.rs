@@ -51,7 +51,7 @@ impl PartialEq for Value {
 }
 
 impl Value {
-    pub fn evaluate(&self, _scope: &Scope) -> Value {
+    pub fn evaluate(&self, _scope: &dyn Scope) -> Value {
         println!("evaluating {:?}", self);
         
         Value::Nil
