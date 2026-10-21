@@ -16,7 +16,7 @@ impl Engine {
     }
 
     pub fn evaluate(&self, expression: Value) -> Value {
-        expression.evaluate(self.scope.as_ref())
+        expression.evaluate(&self.scope)
     }
 }
 

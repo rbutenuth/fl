@@ -51,10 +51,19 @@ impl PartialEq for Value {
 }
 
 impl Value {
-    pub fn evaluate(&self, _scope: &dyn Scope) -> Value {
+    pub fn evaluate(&self, scope: &Arc<dyn Scope>) -> Value {
         println!("evaluating {:?}", self);
-        
-        Value::Nil
+        match self {
+            Value::Nil => Value::Nil,
+            Value::Integer(_) => self.clone(),
+            Value::Float(_) => self.clone(),
+            Value::List(fl_list) => todo!(),
+            Value::Symbol(name, _) => scope.get(name),
+            Value::Text(_) => self.clone(),
+            Value::Map() => todo!(),
+            Value::Object() => todo!(),
+            Value::Function() => todo!(),
+        }
     }
 }
 
@@ -85,5 +94,51 @@ impl FlError {
 
     pub fn new_arc(message: Arc<str>) -> FlError {
         FlError{ message: Arc::clone(&message) }
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use interpreter::scope::MapScope;
+
+    fn symbol(name: &str) -> Value {
+        Value::Symbol(Arc::from(name), None)
+    }
+
+    #[test]
+    fn evaluate_symbol_looks_up_value() {
+        let scope: Arc<dyn Scope> = Arc::new(MapScope::new("global", None));
+        scope.put("a", Value::Integer(42));
+
+        assert_eq!(Value::Integer(42), symbol("a").evaluate(&scope));
+    }
+
+    #[test]
+    fn evaluate_unbound_symbol_is_nil() {
+        let scope: Arc<dyn Scope> = Arc::new(MapScope::new("global", None));
+
+        assert_eq!(Value::Nil, symbol("unknown").evaluate(&scope));
+    }
+
+    #[test]
+    fn evaluate_symbol_walks_scope_chain() {
+        let global: Arc<dyn Scope> = Arc::new(MapScope::new("global", None));
+        global.put("a", Value::Integer(1));
+        global.put("b", Value::Integer(2));
+        let local: Arc<dyn Scope> = Arc::new(MapScope::new("local", Some(Arc::clone(&global))));
+        local.put("b", Value::Integer(3));
+
+        assert_eq!(Value::Integer(1), symbol("a").evaluate(&local));
+        assert_eq!(Value::Integer(3), symbol("b").evaluate(&local));
+    }
+
+    #[test]
+    fn evaluate_symbol_ignores_comment() {
+        let scope: Arc<dyn Scope> = Arc::new(MapScope::new("global", None));
+        scope.put("a", Value::Text(Arc::from("hello")));
+        let commented = Value::Symbol(Arc::from("a"), Some(Arc::from("a comment")));
+
+        assert_eq!(Value::Text(Arc::from("hello")), commented.evaluate(&scope));
     }
 }
