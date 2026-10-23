@@ -53,15 +53,12 @@ impl Value {
     pub fn evaluate(&self, scope: &Arc<dyn Scope>) -> Result<Value, FlError> {
         println!("evaluating {:?}", self);
         match self {
-            Value::Nil => Ok(Value::Nil),
-            Value::Integer(_) => Ok(self.clone()),
-            Value::Float(_) => Ok(self.clone()),
             Value::List(_fl_list) => todo!(),
             Value::Symbol(name, _) => Ok(scope.get(name)),
-            Value::Text(_) => Ok(self.clone()),
             Value::Map() => todo!(),
             Value::Object() => todo!(),
-            Value::Function() => todo!(),
+            // Nil, Integer, Float, Text, Function: just clone
+            _ => Ok(self.clone())
         }
     }
 }

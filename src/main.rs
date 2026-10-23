@@ -39,7 +39,7 @@ pub mod tests {
 
     #[test]
     fn create() {
-        let engine = Engine::new();
+        let _engine = Engine::new();
     }
 
 }

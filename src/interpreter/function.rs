@@ -14,8 +14,11 @@ pub struct Parameter {
 }
 
 impl Parameter {
-    pub fn new(name: String, comment: String) -> Self {
-        Parameter { name, comment }
+    pub fn new(name: impl Into<String>, comment: impl Into<String>) -> Self {
+        Parameter {
+            name: name.into(),
+            comment: comment.into(),
+        }
     }
 }
 
@@ -42,13 +45,29 @@ impl fmt::Display for FlFunction {
 }
 
 impl FlFunction {
+    pub fn new(
+        name: impl Into<String>,
+        comment: impl Into<String>,
+        parameters: Vec<Parameter>,
+        is_vararg: bool,
+        callable: Box<dyn Callable>,
+    ) -> Self {
+        FlFunction {
+            name: name.into(),
+            comment: comment.into(),
+            parameters,
+            is_vararg,
+            callable,
+        }
+    }
+
     pub fn call(&self, scope: &dyn Scope, parameters: Vec<Value>) -> Result<Value, FlError> {
         let expected = self.parameters.len();
         let given = parameters.len();
         if given == expected {
             self.callable.call(scope, &parameters)
         } else if given < expected {
-            Err(FlError::new("todo: Currying"))
+            Err(FlError::new("TODO: Currying"))
         } else {
             if self.is_vararg {
                 self.callable.call(scope, &parameters)
@@ -65,6 +84,52 @@ impl FlFunction {
 #[cfg(test)]
 mod tests {
     use super::*;
+    use crate::interpreter::scope::MapScope;
+
+    struct First;
+
+    impl Callable for First {
+        fn call(&self, _scope: &dyn Scope, parameters: &Vec<Value>) -> Result<Value, FlError> {
+            Ok(parameters[0].clone())
+        }
+    }
+
+    fn function(is_vararg: bool) -> FlFunction {
+        FlFunction::new(
+            "first",
+            "returns first parameter",
+            vec![Parameter::new("a", "the value")],
+            is_vararg,
+            Box::new(First),
+        )
+    }
+
+    #[test]
+    fn new_and_call() {
+        let scope = MapScope::new("global", None);
+
+        let result = function(false).call(&scope, vec![Value::Integer(7)]);
+
+        assert_eq!(Ok(Value::Integer(7)), result);
+    }
+
+    #[test]
+    fn too_many_parameters_without_vararg_is_error() {
+        let scope = MapScope::new("global", None);
+
+        let result = function(false).call(&scope, vec![Value::Integer(1), Value::Integer(2)]);
+
+        assert!(result.is_err());
+    }
+
+    #[test]
+    fn too_many_parameters_with_vararg_is_ok() {
+        let scope = MapScope::new("global", None);
+
+        let result = function(true).call(&scope, vec![Value::Integer(1), Value::Integer(2)]);
+
+        assert_eq!(Ok(Value::Integer(1)), result);
+    }
 
     #[test]
     fn flfunction_is_send_and_sync() {
