@@ -49,7 +49,36 @@ impl PartialEq for Value {
     }
 }
 
+/// The variants of [`Value`] without their payload. Use it to name a variant
+/// (e.g. as a function argument) without having a value of that variant.
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
+pub enum ValueKind {
+    Nil,
+    Integer,
+    Float,
+    List,
+    Symbol,
+    Text,
+    Map,
+    Object,
+    Function,
+}
+
 impl Value {
+    pub fn kind(&self) -> ValueKind {
+        match self {
+            Value::Nil => ValueKind::Nil,
+            Value::Integer(_) => ValueKind::Integer,
+            Value::Float(_) => ValueKind::Float,
+            Value::List(_) => ValueKind::List,
+            Value::Symbol(..) => ValueKind::Symbol,
+            Value::Text(_) => ValueKind::Text,
+            Value::Map() => ValueKind::Map,
+            Value::Object() => ValueKind::Object,
+            Value::Function() => ValueKind::Function,
+        }
+    }
+
     pub fn evaluate(&self, scope: &Arc<dyn Scope>) -> Result<Value, FlError> {
         println!("evaluating {:?}", self);
         match self {
@@ -98,6 +127,19 @@ mod tests {
 
     fn symbol(name: &str) -> Value {
         Value::Symbol(Arc::from(name), None)
+    }
+
+    #[test]
+    fn kind_names_the_variant() {
+        assert_eq!(ValueKind::Nil, Value::Nil.kind());
+        assert_eq!(ValueKind::Integer, Value::Integer(1).kind());
+        assert_eq!(ValueKind::Float, Value::Float(1.0).kind());
+        assert_eq!(ValueKind::List, Value::List(FlList::empty()).kind());
+        assert_eq!(ValueKind::Symbol, symbol("a").kind());
+        assert_eq!(ValueKind::Text, Value::Text(Arc::from("t")).kind());
+        assert_eq!(ValueKind::Map, Value::Map().kind());
+        assert_eq!(ValueKind::Object, Value::Object().kind());
+        assert_eq!(ValueKind::Function, Value::Function().kind());
     }
 
     #[test]

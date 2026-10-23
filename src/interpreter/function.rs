@@ -1,11 +1,21 @@
 //use crate::{FlError, Value};
 
-use std::fmt;
+use std::{fmt, sync::Arc};
 
 use crate::{FlError, Scope, Value};
 
 pub trait Callable: Send + Sync {
     fn call(&self, scope: &dyn Scope, parameters: &Vec<Value>) -> Result<Value, FlError>;
+}
+
+/// Closures (and function pointers) with the right signature are callables.
+impl<F> Callable for F
+where
+    F: Fn(&dyn Scope, &Vec<Value>) -> Result<Value, FlError> + Send + Sync,
+{
+    fn call(&self, scope: &dyn Scope, parameters: &Vec<Value>) -> Result<Value, FlError> {
+        self(scope, parameters)
+    }
 }
 
 pub struct Parameter {
@@ -81,10 +91,31 @@ impl FlFunction {
     }
 }
 
+pub fn x() -> usize {
+    42
+}
+
+/// Evaluate `value` and return the integer it evaluates to. Any other result is an error.
+pub fn evaluate_to_integer(scope: &Arc<dyn Scope>, value: Value) -> Result<i64, FlError> {
+    match value.evaluate(scope)? {
+        Value::Integer(i) => Ok(i),
+        other => Err(FlError::new(format!("expected integer, got {:?}", other))),
+    }
+}
+
+/// Evaluate `value` and return the float it evaluates to. Any other result is an error.
+pub fn evaluate_to_float(scope: &Arc<dyn Scope>, value: Value) -> Result<f64, FlError> {
+    match value.evaluate(scope)? {
+        Value::Float(f) => Ok(f),
+        other => Err(FlError::new(format!("expected integer, got {:?}", other))),
+    }
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
     use crate::interpreter::scope::MapScope;
+    use std::sync::Arc;
 
     struct First;
 
@@ -129,6 +160,53 @@ mod tests {
         let result = function(true).call(&scope, vec![Value::Integer(1), Value::Integer(2)]);
 
         assert_eq!(Ok(Value::Integer(1)), result);
+    }
+
+    #[test]
+    fn closure_as_callable_doubles_numbers() {
+        let scope: MapScope = MapScope::new("global", None);
+        let multiply_by_2 = FlFunction::new(
+            "multiply_by_2",
+            "multiplies a number by 2",
+            vec![Parameter::new("n", "an integer or a float")],
+            false,
+            Box::new(|_scope: &dyn Scope, parameters: &Vec<Value>| match &parameters[0] {
+                Value::Integer(i) => Ok(Value::Integer(i * 2)),
+                Value::Float(f) => Ok(Value::Float(f * 2.0)),
+                other => Err(FlError::new(format!(
+                    "expected integer or float, got {:?}",
+                    other
+                ))),
+            }),
+        );
+
+        assert_eq!(Ok(Value::Integer(42)), multiply_by_2.call(&scope, vec![Value::Integer(21)]));
+        assert_eq!(Ok(Value::Float(3.0)), multiply_by_2.call(&scope, vec![Value::Float(1.5)]));
+        assert!(multiply_by_2
+            .call(&scope, vec![Value::Text(Arc::from("x"))])
+            .is_err());
+        assert!(multiply_by_2.call(&scope, vec![Value::Nil]).is_err());
+    }
+
+    #[test]
+    fn evaluate_to_integer_accepts_integers_and_symbols_bound_to_integers() {
+        let scope: Arc<dyn Scope> = Arc::new(MapScope::new("global", None));
+        scope.put("a", Value::Integer(5));
+
+        assert_eq!(Ok(7), evaluate_to_integer(&scope, Value::Integer(7)));
+        assert_eq!(
+            Ok(5),
+            evaluate_to_integer(&scope, Value::Symbol(Arc::from("a"), None))
+        );
+    }
+
+    #[test]
+    fn evaluate_to_integer_rejects_other_values() {
+        let scope: Arc<dyn Scope> = Arc::new(MapScope::new("global", None));
+
+        assert!(evaluate_to_integer(&scope, Value::Float(1.0)).is_err());
+        assert!(evaluate_to_integer(&scope, Value::Nil).is_err());
+        assert!(evaluate_to_integer(&scope, Value::Symbol(Arc::from("unbound"), None)).is_err());
     }
 
     #[test]

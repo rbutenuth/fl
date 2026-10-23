@@ -36,10 +36,13 @@ fn main() {
 #[cfg(test)]
 pub mod tests {
     use super::*;
+    // replace fl:: with crate:: when used in library and not im main.
+    use fl::interpreter::function::x;
 
     #[test]
     fn create() {
         let _engine = Engine::new();
+        let _x = x();
     }
 
 }
