@@ -19,7 +19,7 @@ impl FlList {
     pub fn get(&self, index: isize) -> Result<Value, FlError> {
         self.check_not_empty("get on empty list")?;
         if index < 0 {
-            return Err(FlError::new(&format!("negative index: {}", index)));
+            return Err(FlError::new(format!("negative index: {}", index)));
         }
         let u_index = index as usize;
         let mut bucket_idx = 0;

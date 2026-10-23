@@ -34,15 +34,6 @@ pub trait Scope: Send + Sync {
     /// Returns a copy of the value
     fn define(&self, key: &str, value: Value) -> Result<Value, FlError>;
 /*
-	/**
-	 * Put a key value mapping in the scope, may overwrite an existing mapping. The
-	 * name is taken from the value.
-	 * 
-	 * @param value The value of the symbol, null values are allowed and will remove
-	 *              the mapping.
-	 */
-	public void define(Named value) throws ScopeException;
-
 	@Override
 	public Iterator<Entry<String, FplValue>> iterator();
 	
@@ -85,7 +76,7 @@ impl MapScope {
     }
 
     fn no_mapping(key: &str) -> FlError {
-        FlError::new(&format!("No mapping for \"{}\"", key))
+        FlError::new(format!("No mapping for \"{}\"", key))
     }
 }
 
@@ -137,7 +128,7 @@ impl Scope for MapScope {
     fn define(&self, key: &str, value: Value) -> Result<Value, FlError> {
         let mut map = self.map.write().expect("scope lock poisoned");
         if map.contains_key(key) {
-            return Err(FlError::new(&format!("\"{}\" is already defined in scope \"{}\"", key, self.name)));
+            return Err(FlError::new(format!("\"{}\" is already defined in scope \"{}\"", key, self.name)));
         }
         if !matches!(value, Value::Nil) {
             map.insert(String::from(key), value.clone());

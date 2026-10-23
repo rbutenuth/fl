@@ -40,7 +40,7 @@ impl Parser {
             Float { value } => Ok(self.float(value)),
             Symbol { value, comment } => Ok(self.symbol(value, comment)),
             Text { value } => Ok(self.text(value)),
-            NonScanable { message } => Err(FlError::new_arc(message)), // TODO: Position
+            NonScanable { message } => Err(FlError::new(&*message)), // TODO: Position
             _ => Err(FlError::new("unexpected )")), // TODO: Position
         }
     }

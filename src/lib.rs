@@ -1,12 +1,11 @@
-use std::{error::Error, fmt, sync::Arc };
+use std::{error::Error, fmt, sync::Arc};
 
-use list::FlList;
 use interpreter::Scope;
+use list::FlList;
 
 pub mod interpreter;
 pub mod list;
 pub mod parser;
-
 
 #[derive(Debug)]
 pub enum Value {
@@ -16,8 +15,8 @@ pub enum Value {
     List(FlList),
     Symbol(Arc<str>, Option<Arc<str>>), // name, comment
     Text(Arc<str>),
-    Map(), // TODO: implement
-    Object(), // TODO: implement
+    Map(),      // TODO: implement
+    Object(),   // TODO: implement
     Function(), // TODO: implement
 }
 
@@ -57,7 +56,7 @@ impl Value {
             Value::Nil => Ok(Value::Nil),
             Value::Integer(_) => Ok(self.clone()),
             Value::Float(_) => Ok(self.clone()),
-            Value::List(fl_list) => todo!(),
+            Value::List(_fl_list) => todo!(),
             Value::Symbol(name, _) => Ok(scope.get(name)),
             Value::Text(_) => Ok(self.clone()),
             Value::Map() => todo!(),
@@ -67,9 +66,9 @@ impl Value {
     }
 }
 
-#[derive(Debug, PartialEq)]
-pub struct FlError{
-    message: Arc<str>,
+#[derive(Debug, Clone, PartialEq)]
+pub struct FlError {
+    message: String,
     // TODO: Add information about source position and source (RUST for cause in Java)
 }
 
@@ -87,13 +86,11 @@ impl Error for FlError {
 }
 
 impl FlError {
-
-    pub fn new(message: &str) -> FlError {
-        Self::new_arc(Arc::from(message))
-    }
-
-    pub fn new_arc(message: Arc<str>) -> FlError {
-        FlError{ message: Arc::clone(&message) }
+    /// Accepts `&str` (one allocation) or `String` (moved in, no copy).
+    pub fn new(message: impl Into<String>) -> FlError {
+        FlError {
+            message: message.into(),
+        }
     }
 }
 
@@ -139,6 +136,16 @@ mod tests {
         scope.put("a", Value::Text(Arc::from("hello")));
         let commented = Value::Symbol(Arc::from("a"), Some(Arc::from("a comment")));
 
-        assert_eq!(Ok(Value::Text(Arc::from("hello"))), commented.evaluate(&scope));
+        assert_eq!(
+            Ok(Value::Text(Arc::from("hello"))),
+            commented.evaluate(&scope)
+        );
+    }
+
+    #[test]
+    fn value_is_send_and_sync() {
+        fn assert_send_sync<T: Send + Sync>() {}
+        assert_send_sync::<Value>();
+        assert_send_sync::<FlError>();
     }
 }
