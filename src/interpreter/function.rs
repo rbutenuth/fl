@@ -2,7 +2,8 @@
 
 use std::{fmt, sync::Arc};
 
-use crate::{FlError, Scope, Value, ValueKinds};
+use crate::interpreter::Scope;
+use crate::{FlError, Value, ValueKinds};
 
 pub trait Callable: Send + Sync {
     fn call(&self, scope: &dyn Scope, parameters: &Vec<Value>) -> Result<Value, FlError>;
