@@ -2,7 +2,7 @@
 
 use std::{fmt, sync::Arc};
 
-use crate::{FlError, Scope, Value};
+use crate::{FlError, Scope, Value, ValueKinds};
 
 pub trait Callable: Send + Sync {
     fn call(&self, scope: &dyn Scope, parameters: &Vec<Value>) -> Result<Value, FlError>;
@@ -21,13 +21,34 @@ where
 pub struct Parameter {
     name: String,
     comment: String,
+    kinds: ValueKinds,
 }
 
 impl Parameter {
-    pub fn new(name: impl Into<String>, comment: impl Into<String>) -> Self {
+    /// `kinds` is the set of value kinds this parameter accepts, a single
+    /// [`ValueKind`] or a [`ValueKinds`] (use `ValueKinds::ALL` for "anything").
+    pub fn new(
+        name: impl Into<String>,
+        comment: impl Into<String>,
+        kinds: impl Into<ValueKinds>,
+    ) -> Self {
         Parameter {
             name: name.into(),
             comment: comment.into(),
+            kinds: kinds.into(),
+        }
+    }
+
+    fn check(&self, value: &Value) -> Result<(), FlError> {
+        if self.kinds.contains(value.kind()) {
+            Ok(())
+        } else {
+            Err(FlError::new(format!(
+                "Parameter {} expects {}, but got {:?}",
+                self.name,
+                self.kinds,
+                value.kind()
+            )))
         }
     }
 }
@@ -49,6 +70,7 @@ impl fmt::Display for FlFunction {
         for p in &self.parameters {
             writeln!(f, " {}", p.name)?;
             writeln!(f, "  {}", p.comment)?;
+            writeln!(f, "  accepts: {}", p.kinds)?;
         }
         Ok(())
     }
@@ -74,6 +96,10 @@ impl FlFunction {
     pub fn call(&self, scope: &dyn Scope, parameters: Vec<Value>) -> Result<Value, FlError> {
         let expected = self.parameters.len();
         let given = parameters.len();
+        // Extra (vararg) parameters beyond the declared ones are not checked.
+        for (parameter, value) in self.parameters.iter().zip(&parameters) {
+            parameter.check(value)?;
+        }
         if given == expected {
             self.callable.call(scope, &parameters)
         } else if given < expected {
@@ -114,6 +140,7 @@ pub fn evaluate_to_float(scope: &Arc<dyn Scope>, value: Value) -> Result<f64, Fl
 #[cfg(test)]
 mod tests {
     use super::*;
+    use crate::ValueKind;
     use crate::interpreter::scope::MapScope;
     use std::sync::Arc;
 
@@ -129,7 +156,7 @@ mod tests {
         FlFunction::new(
             "first",
             "returns first parameter",
-            vec![Parameter::new("a", "the value")],
+            vec![Parameter::new("a", "the value", ValueKinds::ALL)],
             is_vararg,
             Box::new(First),
         )
@@ -168,7 +195,7 @@ mod tests {
         let multiply_by_2 = FlFunction::new(
             "multiply_by_2",
             "multiplies a number by 2",
-            vec![Parameter::new("n", "an integer or a float")],
+            vec![Parameter::new("n", "an integer or a float", ValueKinds::NUMBER)],
             false,
             Box::new(|_scope: &dyn Scope, parameters: &Vec<Value>| match &parameters[0] {
                 Value::Integer(i) => Ok(Value::Integer(i * 2)),
@@ -207,6 +234,43 @@ mod tests {
         assert!(evaluate_to_integer(&scope, Value::Float(1.0)).is_err());
         assert!(evaluate_to_integer(&scope, Value::Nil).is_err());
         assert!(evaluate_to_integer(&scope, Value::Symbol(Arc::from("unbound"), None)).is_err());
+    }
+
+    #[test]
+    fn parameter_kinds_are_checked_before_the_callable_runs() {
+        let scope = MapScope::new("global", None);
+        let text_only = FlFunction::new(
+            "length",
+            "never called with wrong kinds",
+            vec![Parameter::new("s", "a text", ValueKind::Text)],
+            false,
+            Box::new(|_scope: &dyn Scope, _parameters: &Vec<Value>| -> Result<Value, FlError> {
+                Ok(Value::Nil)
+            }),
+        );
+
+        assert_eq!(Ok(Value::Nil), text_only.call(&scope, vec![Value::Text(Arc::from("x"))]));
+        let error = text_only.call(&scope, vec![Value::Integer(1)]).unwrap_err();
+        assert_eq!(
+            FlError::new("Parameter s expects Text, but got Integer"),
+            error
+        );
+    }
+
+    #[test]
+    fn vararg_parameters_beyond_declared_ones_are_not_checked() {
+        let scope = MapScope::new("global", None);
+        let function = FlFunction::new(
+            "f",
+            "",
+            vec![Parameter::new("n", "a number", ValueKinds::NUMBER)],
+            true,
+            Box::new(|_scope: &dyn Scope, parameters: &Vec<Value>| Ok(parameters[0].clone())),
+        );
+
+        let result = function.call(&scope, vec![Value::Integer(1), Value::Nil]);
+
+        assert_eq!(Ok(Value::Integer(1)), result);
     }
 
     #[test]

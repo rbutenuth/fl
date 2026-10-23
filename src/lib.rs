@@ -64,6 +64,97 @@ pub enum ValueKind {
     Function,
 }
 
+impl ValueKind {
+    /// All kinds, in declaration order.
+    pub const ALL: [ValueKind; 9] = [
+        ValueKind::Nil,
+        ValueKind::Integer,
+        ValueKind::Float,
+        ValueKind::List,
+        ValueKind::Symbol,
+        ValueKind::Text,
+        ValueKind::Map,
+        ValueKind::Object,
+        ValueKind::Function,
+    ];
+}
+
+// ValueKinds stores one bit per kind in a u16.
+const _: () = assert!(ValueKind::Function as u16 <= 15);
+
+/// A set of [`ValueKind`]s, stored as a bit set in one integer.
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
+pub struct ValueKinds(u16);
+
+impl ValueKinds {
+    pub const NONE: ValueKinds = ValueKinds(0);
+    pub const ALL: ValueKinds = ValueKinds((1 << (ValueKind::Function as u16 + 1)) - 1);
+    /// Integer or Float.
+    pub const NUMBER: ValueKinds =
+        ValueKinds::single(ValueKind::Integer).union(ValueKinds::single(ValueKind::Float));
+
+    pub const fn single(kind: ValueKind) -> ValueKinds {
+        ValueKinds(1 << kind as u16)
+    }
+
+    pub const fn union(self, other: ValueKinds) -> ValueKinds {
+        ValueKinds(self.0 | other.0)
+    }
+
+    pub const fn contains(self, kind: ValueKind) -> bool {
+        self.0 & (1 << kind as u16) != 0
+    }
+}
+
+impl From<ValueKind> for ValueKinds {
+    fn from(kind: ValueKind) -> ValueKinds {
+        ValueKinds::single(kind)
+    }
+}
+
+/// `ValueKind::Integer | ValueKind::Float`
+impl std::ops::BitOr for ValueKind {
+    type Output = ValueKinds;
+
+    fn bitor(self, other: ValueKind) -> ValueKinds {
+        ValueKinds::single(self).union(ValueKinds::single(other))
+    }
+}
+
+/// `ValueKinds::NUMBER | ValueKind::Text`
+impl std::ops::BitOr<ValueKind> for ValueKinds {
+    type Output = ValueKinds;
+
+    fn bitor(self, other: ValueKind) -> ValueKinds {
+        self.union(ValueKinds::single(other))
+    }
+}
+
+impl std::ops::BitOr for ValueKinds {
+    type Output = ValueKinds;
+
+    fn bitor(self, other: ValueKinds) -> ValueKinds {
+        self.union(other)
+    }
+}
+
+/// Lists the kinds, e.g. "Integer or Float".
+impl fmt::Display for ValueKinds {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        let mut first = true;
+        for kind in ValueKind::ALL.iter().filter(|k| self.contains(**k)) {
+            if !first {
+                write!(f, " or ")?;
+            }
+            write!(f, "{:?}", kind)?;
+            first = false;
+        }
+        if first {
+            write!(f, "nothing")?;
+        }
+        Ok(())
+    }
+}
 impl Value {
     pub fn kind(&self) -> ValueKind {
         match self {
@@ -127,6 +218,36 @@ mod tests {
 
     fn symbol(name: &str) -> Value {
         Value::Symbol(Arc::from(name), None)
+    }
+
+    #[test]
+    fn value_kinds_contains() {
+        assert!(ValueKinds::NUMBER.contains(ValueKind::Integer));
+        assert!(ValueKinds::NUMBER.contains(ValueKind::Float));
+        assert!(!ValueKinds::NUMBER.contains(ValueKind::Text));
+        assert!(!ValueKinds::NONE.contains(ValueKind::Nil));
+        for kind in ValueKind::ALL {
+            assert!(ValueKinds::ALL.contains(kind));
+            assert!(ValueKinds::single(kind).contains(kind));
+        }
+    }
+
+    #[test]
+    fn value_kinds_combine() {
+        let text_or_symbol = ValueKind::Text | ValueKind::Symbol;
+        assert!(text_or_symbol.contains(ValueKind::Text));
+        assert!(text_or_symbol.contains(ValueKind::Symbol));
+        assert!(!text_or_symbol.contains(ValueKind::Integer));
+        assert_eq!(ValueKinds::NUMBER, ValueKind::Integer | ValueKind::Float);
+        assert!((ValueKinds::NUMBER | ValueKind::Text).contains(ValueKind::Text));
+        assert_eq!(ValueKinds::ALL, ValueKinds::NUMBER | ValueKinds::ALL);
+    }
+
+    #[test]
+    fn value_kinds_display() {
+        assert_eq!("Integer or Float", ValueKinds::NUMBER.to_string());
+        assert_eq!("Text", ValueKinds::single(ValueKind::Text).to_string());
+        assert_eq!("nothing", ValueKinds::NONE.to_string());
     }
 
     #[test]
