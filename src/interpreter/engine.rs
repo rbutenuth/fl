@@ -1,6 +1,6 @@
 use std::sync::Arc;
 
-use crate::Value;
+use crate::{FlError, Value};
 use crate::interpreter::Scope;
 use crate::interpreter::scope::MapScope;
 
@@ -15,7 +15,7 @@ impl Engine {
         }
     }
 
-    pub fn evaluate(&self, expression: Value) -> Value {
+    pub fn evaluate(&self, expression: Value) -> Result<Value, FlError> {
         expression.evaluate(&self.scope)
     }
 }

@@ -51,15 +51,15 @@ impl PartialEq for Value {
 }
 
 impl Value {
-    pub fn evaluate(&self, scope: &Arc<dyn Scope>) -> Value {
+    pub fn evaluate(&self, scope: &Arc<dyn Scope>) -> Result<Value, FlError> {
         println!("evaluating {:?}", self);
         match self {
-            Value::Nil => Value::Nil,
-            Value::Integer(_) => self.clone(),
-            Value::Float(_) => self.clone(),
+            Value::Nil => Ok(Value::Nil),
+            Value::Integer(_) => Ok(self.clone()),
+            Value::Float(_) => Ok(self.clone()),
             Value::List(fl_list) => todo!(),
-            Value::Symbol(name, _) => scope.get(name),
-            Value::Text(_) => self.clone(),
+            Value::Symbol(name, _) => Ok(scope.get(name)),
+            Value::Text(_) => Ok(self.clone()),
             Value::Map() => todo!(),
             Value::Object() => todo!(),
             Value::Function() => todo!(),
@@ -111,14 +111,14 @@ mod tests {
         let scope: Arc<dyn Scope> = Arc::new(MapScope::new("global", None));
         scope.put("a", Value::Integer(42));
 
-        assert_eq!(Value::Integer(42), symbol("a").evaluate(&scope));
+        assert_eq!(Ok(Value::Integer(42)), symbol("a").evaluate(&scope));
     }
 
     #[test]
     fn evaluate_unbound_symbol_is_nil() {
         let scope: Arc<dyn Scope> = Arc::new(MapScope::new("global", None));
 
-        assert_eq!(Value::Nil, symbol("unknown").evaluate(&scope));
+        assert_eq!(Ok(Value::Nil), symbol("unknown").evaluate(&scope));
     }
 
     #[test]
@@ -129,8 +129,8 @@ mod tests {
         let local: Arc<dyn Scope> = Arc::new(MapScope::new("local", Some(Arc::clone(&global))));
         local.put("b", Value::Integer(3));
 
-        assert_eq!(Value::Integer(1), symbol("a").evaluate(&local));
-        assert_eq!(Value::Integer(3), symbol("b").evaluate(&local));
+        assert_eq!(Ok(Value::Integer(1)), symbol("a").evaluate(&local));
+        assert_eq!(Ok(Value::Integer(3)), symbol("b").evaluate(&local));
     }
 
     #[test]
@@ -139,6 +139,6 @@ mod tests {
         scope.put("a", Value::Text(Arc::from("hello")));
         let commented = Value::Symbol(Arc::from("a"), Some(Arc::from("a comment")));
 
-        assert_eq!(Value::Text(Arc::from("hello")), commented.evaluate(&scope));
+        assert_eq!(Ok(Value::Text(Arc::from("hello"))), commented.evaluate(&scope));
     }
 }
