@@ -3,7 +3,7 @@
 use std::{fmt, sync::Arc};
 
 use crate::interpreter::Scope;
-use crate::{FlError, Value, ValueTypes};
+use crate::{FlError, Value, ValueType, ValueTypes};
 
 pub trait Callable: Send + Sync {
     fn call(&self, scope: &dyn Scope, parameters: &Vec<Value>) -> Result<Value, FlError>;
@@ -41,6 +41,56 @@ impl Parameter {
             types: types.into(),
             eager: eager,
         }
+    }
+
+    /// `type_spec` is a String describing the parameter. One letter per type, with a special meaning for `E`
+    /// * N: Nil
+    /// * I: Integer
+    /// * D: Float
+    /// * L: List
+    /// * S: Symbol
+    /// * T: Text
+    /// * M: Map
+    /// * O: Object
+    /// * F: Function
+    /// * E: Eager evaluation
+    /// In case of no letter provided (except E), all types are allowed.
+    /// Letters are case insensitive. An unknown letter is an error.
+    pub fn new_from_spec(
+        name: impl Into<String>,
+        comment: impl Into<String>,
+        type_spec: impl AsRef<str>,
+    ) -> Result<Self, FlError> {
+        let mut types = ValueTypes::NONE;
+        let mut eager = false;
+        for letter in type_spec.as_ref().chars() {
+            let value_type = match letter.to_ascii_uppercase() {
+                'N' => ValueType::Nil,
+                'I' => ValueType::Integer,
+                'D' => ValueType::Float,
+                'L' => ValueType::List,
+                'S' => ValueType::Symbol,
+                'T' => ValueType::Text,
+                'M' => ValueType::Map,
+                'O' => ValueType::Object,
+                'F' => ValueType::Function,
+                'E' => {
+                    eager = true;
+                    continue;
+                }
+                _ => {
+                    return Err(FlError::new(format!(
+                        "Unknown letter '{}' in parameter type spec",
+                        letter
+                    )));
+                }
+            };
+            types = types | value_type;
+        }
+        if types == ValueTypes::NONE {
+            types = ValueTypes::ALL;
+        }
+        Ok(Parameter::new(name, comment, types, eager))
     }
 
     fn check(&self, value: &Value) -> Result<(), FlError> {
@@ -275,6 +325,51 @@ mod tests {
         let result = function.call(&scope, vec![Value::Integer(1), Value::Nil]);
 
         assert_eq!(Ok(Value::Integer(1)), result);
+    }
+
+    #[test]
+    fn new_from_spec_parses_types_and_eager() {
+        let p = Parameter::new_from_spec("p", "", "IDE").unwrap();
+        assert_eq!(ValueTypes::NUMBER, p.types);
+        assert!(p.eager);
+
+        let p = Parameter::new_from_spec("p", "", "NLSTMOF").unwrap();
+        assert_eq!(
+            ValueType::Nil
+                | ValueType::List
+                | ValueType::Symbol
+                | ValueType::Text
+                | ValueType::Map
+                | ValueType::Object
+                | ValueType::Function,
+            p.types
+        );
+        assert!(!p.eager);
+    }
+
+    #[test]
+    fn new_from_spec_ignores_case() {
+        let p = Parameter::new_from_spec("p", "", "idE").unwrap();
+        assert_eq!(ValueTypes::NUMBER, p.types);
+        assert!(p.eager);
+    }
+
+    #[test]
+    fn new_from_spec_without_type_letters_accepts_everything() {
+        assert_eq!(ValueTypes::ALL, Parameter::new_from_spec("p", "", "").unwrap().types);
+
+        let p = Parameter::new_from_spec("p", "", "e").unwrap();
+        assert_eq!(ValueTypes::ALL, p.types);
+        assert!(p.eager);
+    }
+
+    #[test]
+    fn new_from_spec_rejects_unknown_letters() {
+        let error = Parameter::new_from_spec("p", "", "IX").err().unwrap();
+        assert_eq!(
+            FlError::new("Unknown letter 'X' in parameter type spec"),
+            error
+        );
     }
 
     #[test]
