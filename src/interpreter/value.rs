@@ -41,6 +41,7 @@ impl PartialEq for Value {
             (Value::Float(s), Value::Float(o)) => s == o,
             (Value::Text(s), Value::Text(o)) => s == o,
             (Value::Symbol(s, _), Value::Symbol(o, _)) => s == o,
+            // TODO: Function, List, etc.
             _ => false,
         }
     }
@@ -49,7 +50,7 @@ impl PartialEq for Value {
 /// The variants of [`Value`] without their payload. Use it to name a variant
 /// (e.g. as a function argument) without having a value of that variant.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
-pub enum ValueKind {
+pub enum ValueType {
     Nil,
     Integer,
     Float,
@@ -61,89 +62,89 @@ pub enum ValueKind {
     Function,
 }
 
-impl ValueKind {
-    /// All kinds, in declaration order.
-    pub const ALL: [ValueKind; 9] = [
-        ValueKind::Nil,
-        ValueKind::Integer,
-        ValueKind::Float,
-        ValueKind::List,
-        ValueKind::Symbol,
-        ValueKind::Text,
-        ValueKind::Map,
-        ValueKind::Object,
-        ValueKind::Function,
+impl ValueType {
+    /// All types, in declaration order.
+    pub const ALL: [ValueType; 9] = [
+        ValueType::Nil,
+        ValueType::Integer,
+        ValueType::Float,
+        ValueType::List,
+        ValueType::Symbol,
+        ValueType::Text,
+        ValueType::Map,
+        ValueType::Object,
+        ValueType::Function,
     ];
 }
 
-// ValueKinds stores one bit per kind in a u16.
-const _: () = assert!(ValueKind::Function as u16 <= 15);
+// ValueTypes stores one bit per type in a u16.
+const _: () = assert!(ValueType::Function as u16 <= 15);
 
-/// A set of [`ValueKind`]s, stored as a bit set in one integer.
+/// A set of [`ValueType`]s, stored as a bit set in one integer.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
-pub struct ValueKinds(u16);
+pub struct ValueTypes(u16);
 
-impl ValueKinds {
-    pub const NONE: ValueKinds = ValueKinds(0);
-    pub const ALL: ValueKinds = ValueKinds((1 << (ValueKind::Function as u16 + 1)) - 1);
+impl ValueTypes {
+    pub const NONE: ValueTypes = ValueTypes(0);
+    pub const ALL: ValueTypes = ValueTypes((1 << (ValueType::Function as u16 + 1)) - 1);
     /// Integer or Float.
-    pub const NUMBER: ValueKinds =
-        ValueKinds::single(ValueKind::Integer).union(ValueKinds::single(ValueKind::Float));
+    pub const NUMBER: ValueTypes =
+        ValueTypes::single(ValueType::Integer).union(ValueTypes::single(ValueType::Float));
 
-    pub const fn single(kind: ValueKind) -> ValueKinds {
-        ValueKinds(1 << kind as u16)
+    pub const fn single(vt: ValueType) -> ValueTypes {
+        ValueTypes(1 << vt as u16)
     }
 
-    pub const fn union(self, other: ValueKinds) -> ValueKinds {
-        ValueKinds(self.0 | other.0)
+    pub const fn union(self, other: ValueTypes) -> ValueTypes {
+        ValueTypes(self.0 | other.0)
     }
 
-    pub const fn contains(self, kind: ValueKind) -> bool {
-        self.0 & (1 << kind as u16) != 0
-    }
-}
-
-impl From<ValueKind> for ValueKinds {
-    fn from(kind: ValueKind) -> ValueKinds {
-        ValueKinds::single(kind)
+    pub const fn contains(self, vt: ValueType) -> bool {
+        self.0 & (1 << vt as u16) != 0
     }
 }
 
-/// `ValueKind::Integer | ValueKind::Float`
-impl std::ops::BitOr for ValueKind {
-    type Output = ValueKinds;
-
-    fn bitor(self, other: ValueKind) -> ValueKinds {
-        ValueKinds::single(self).union(ValueKinds::single(other))
+impl From<ValueType> for ValueTypes {
+    fn from(vt: ValueType) -> ValueTypes {
+        ValueTypes::single(vt)
     }
 }
 
-/// `ValueKinds::NUMBER | ValueKind::Text`
-impl std::ops::BitOr<ValueKind> for ValueKinds {
-    type Output = ValueKinds;
+/// `ValueType::Integer | ValueType::Float`
+impl std::ops::BitOr for ValueType {
+    type Output = ValueTypes;
 
-    fn bitor(self, other: ValueKind) -> ValueKinds {
-        self.union(ValueKinds::single(other))
+    fn bitor(self, other: ValueType) -> ValueTypes {
+        ValueTypes::single(self).union(ValueTypes::single(other))
     }
 }
 
-impl std::ops::BitOr for ValueKinds {
-    type Output = ValueKinds;
+/// `ValueTypes::NUMBER | ValueType::Text`
+impl std::ops::BitOr<ValueType> for ValueTypes {
+    type Output = ValueTypes;
 
-    fn bitor(self, other: ValueKinds) -> ValueKinds {
+    fn bitor(self, other: ValueType) -> ValueTypes {
+        self.union(ValueTypes::single(other))
+    }
+}
+
+impl std::ops::BitOr for ValueTypes {
+    type Output = ValueTypes;
+
+    fn bitor(self, other: ValueTypes) -> ValueTypes {
         self.union(other)
     }
 }
 
-/// Lists the kinds, e.g. "Integer or Float".
-impl fmt::Display for ValueKinds {
+/// Lists the types, e.g. "Integer or Float".
+impl fmt::Display for ValueTypes {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         let mut first = true;
-        for kind in ValueKind::ALL.iter().filter(|k| self.contains(**k)) {
+        for vt in ValueType::ALL.iter().filter(|k| self.contains(**k)) {
             if !first {
                 write!(f, " or ")?;
             }
-            write!(f, "{:?}", kind)?;
+            write!(f, "{:?}", vt)?;
             first = false;
         }
         if first {
@@ -154,17 +155,17 @@ impl fmt::Display for ValueKinds {
 }
 
 impl Value {
-    pub fn kind(&self) -> ValueKind {
+    pub fn as_value_type(&self) -> ValueType {
         match self {
-            Value::Nil => ValueKind::Nil,
-            Value::Integer(_) => ValueKind::Integer,
-            Value::Float(_) => ValueKind::Float,
-            Value::List(_) => ValueKind::List,
-            Value::Symbol(..) => ValueKind::Symbol,
-            Value::Text(_) => ValueKind::Text,
-            Value::Map() => ValueKind::Map,
-            Value::Object() => ValueKind::Object,
-            Value::Function() => ValueKind::Function,
+            Value::Nil => ValueType::Nil,
+            Value::Integer(_) => ValueType::Integer,
+            Value::Float(_) => ValueType::Float,
+            Value::List(_) => ValueType::List,
+            Value::Symbol(..) => ValueType::Symbol,
+            Value::Text(_) => ValueType::Text,
+            Value::Map() => ValueType::Map,
+            Value::Object() => ValueType::Object,
+            Value::Function() => ValueType::Function,
         }
     }
 
@@ -191,46 +192,46 @@ mod tests {
     }
 
     #[test]
-    fn value_kinds_contains() {
-        assert!(ValueKinds::NUMBER.contains(ValueKind::Integer));
-        assert!(ValueKinds::NUMBER.contains(ValueKind::Float));
-        assert!(!ValueKinds::NUMBER.contains(ValueKind::Text));
-        assert!(!ValueKinds::NONE.contains(ValueKind::Nil));
-        for kind in ValueKind::ALL {
-            assert!(ValueKinds::ALL.contains(kind));
-            assert!(ValueKinds::single(kind).contains(kind));
+    fn value_types_contains() {
+        assert!(ValueTypes::NUMBER.contains(ValueType::Integer));
+        assert!(ValueTypes::NUMBER.contains(ValueType::Float));
+        assert!(!ValueTypes::NUMBER.contains(ValueType::Text));
+        assert!(!ValueTypes::NONE.contains(ValueType::Nil));
+        for vt in ValueType::ALL {
+            assert!(ValueTypes::ALL.contains(vt));
+            assert!(ValueTypes::single(vt).contains(vt));
         }
     }
 
     #[test]
-    fn value_kinds_combine() {
-        let text_or_symbol = ValueKind::Text | ValueKind::Symbol;
-        assert!(text_or_symbol.contains(ValueKind::Text));
-        assert!(text_or_symbol.contains(ValueKind::Symbol));
-        assert!(!text_or_symbol.contains(ValueKind::Integer));
-        assert_eq!(ValueKinds::NUMBER, ValueKind::Integer | ValueKind::Float);
-        assert!((ValueKinds::NUMBER | ValueKind::Text).contains(ValueKind::Text));
-        assert_eq!(ValueKinds::ALL, ValueKinds::NUMBER | ValueKinds::ALL);
+    fn value_types_combine() {
+        let text_or_symbol = ValueType::Text | ValueType::Symbol;
+        assert!(text_or_symbol.contains(ValueType::Text));
+        assert!(text_or_symbol.contains(ValueType::Symbol));
+        assert!(!text_or_symbol.contains(ValueType::Integer));
+        assert_eq!(ValueTypes::NUMBER, ValueType::Integer | ValueType::Float);
+        assert!((ValueTypes::NUMBER | ValueType::Text).contains(ValueType::Text));
+        assert_eq!(ValueTypes::ALL, ValueTypes::NUMBER | ValueTypes::ALL);
     }
 
     #[test]
-    fn value_kinds_display() {
-        assert_eq!("Integer or Float", ValueKinds::NUMBER.to_string());
-        assert_eq!("Text", ValueKinds::single(ValueKind::Text).to_string());
-        assert_eq!("nothing", ValueKinds::NONE.to_string());
+    fn value_typess_display() {
+        assert_eq!("Integer or Float", ValueTypes::NUMBER.to_string());
+        assert_eq!("Text", ValueTypes::single(ValueType::Text).to_string());
+        assert_eq!("nothing", ValueTypes::NONE.to_string());
     }
 
     #[test]
-    fn kind_names_the_variant() {
-        assert_eq!(ValueKind::Nil, Value::Nil.kind());
-        assert_eq!(ValueKind::Integer, Value::Integer(1).kind());
-        assert_eq!(ValueKind::Float, Value::Float(1.0).kind());
-        assert_eq!(ValueKind::List, Value::List(FlList::empty()).kind());
-        assert_eq!(ValueKind::Symbol, symbol("a").kind());
-        assert_eq!(ValueKind::Text, Value::Text(Arc::from("t")).kind());
-        assert_eq!(ValueKind::Map, Value::Map().kind());
-        assert_eq!(ValueKind::Object, Value::Object().kind());
-        assert_eq!(ValueKind::Function, Value::Function().kind());
+    fn type_names_the_variant() {
+        assert_eq!(ValueType::Nil, Value::Nil.as_value_type());
+        assert_eq!(ValueType::Integer, Value::Integer(1).as_value_type());
+        assert_eq!(ValueType::Float, Value::Float(1.0).as_value_type());
+        assert_eq!(ValueType::List, Value::List(FlList::empty()).as_value_type());
+        assert_eq!(ValueType::Symbol, symbol("a").as_value_type());
+        assert_eq!(ValueType::Text, Value::Text(Arc::from("t")).as_value_type());
+        assert_eq!(ValueType::Map, Value::Map().as_value_type());
+        assert_eq!(ValueType::Object, Value::Object().as_value_type());
+        assert_eq!(ValueType::Function, Value::Function().as_value_type());
     }
 
     #[test]
@@ -276,6 +277,6 @@ mod tests {
     fn value_is_send_and_sync() {
         fn assert_send_sync<T: Send + Sync>() {}
         assert_send_sync::<Value>();
-        assert_send_sync::<ValueKinds>();
+        assert_send_sync::<ValueTypes>();
     }
 }

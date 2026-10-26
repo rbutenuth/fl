@@ -4,7 +4,7 @@ pub mod interpreter;
 pub mod list;
 pub mod parser;
 
-pub use interpreter::value::{Value, ValueKind, ValueKinds};
+pub use interpreter::value::{Value, ValueType, ValueTypes};
 
 #[derive(Debug, Clone, PartialEq)]
 pub struct FlError {

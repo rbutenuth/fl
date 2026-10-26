@@ -3,7 +3,7 @@
 use std::{fmt, sync::Arc};
 
 use crate::interpreter::Scope;
-use crate::{FlError, Value, ValueKinds};
+use crate::{FlError, Value, ValueTypes};
 
 pub trait Callable: Send + Sync {
     fn call(&self, scope: &dyn Scope, parameters: &Vec<Value>) -> Result<Value, FlError>;
@@ -22,33 +22,33 @@ where
 pub struct Parameter {
     name: String,
     comment: String,
-    kinds: ValueKinds,
+    types: ValueTypes,
 }
 
 impl Parameter {
-    /// `kinds` is the set of value kinds this parameter accepts, a single
-    /// [`ValueKind`] or a [`ValueKinds`] (use `ValueKinds::ALL` for "anything").
+    /// `types` is the set of value types this parameter accepts, a single
+    /// [`ValueType`] or a [`ValueTypes`] (use `ValueTypes::ALL` for "anything").
     pub fn new(
         name: impl Into<String>,
         comment: impl Into<String>,
-        kinds: impl Into<ValueKinds>,
+        types: impl Into<ValueTypes>,
     ) -> Self {
         Parameter {
             name: name.into(),
             comment: comment.into(),
-            kinds: kinds.into(),
+            types: types.into(),
         }
     }
 
     fn check(&self, value: &Value) -> Result<(), FlError> {
-        if self.kinds.contains(value.kind()) {
+        if self.types.contains(value.as_value_type()) {
             Ok(())
         } else {
             Err(FlError::new(format!(
                 "Parameter {} expects {}, but got {:?}",
                 self.name,
-                self.kinds,
-                value.kind()
+                self.types,
+                value.as_value_type()
             )))
         }
     }
@@ -71,7 +71,7 @@ impl fmt::Display for FlFunction {
         for p in &self.parameters {
             writeln!(f, " {}", p.name)?;
             writeln!(f, "  {}", p.comment)?;
-            writeln!(f, "  accepts: {}", p.kinds)?;
+            writeln!(f, "  accepts: {}", p.types)?;
         }
         Ok(())
     }
@@ -141,7 +141,7 @@ pub fn evaluate_to_float(scope: &Arc<dyn Scope>, value: Value) -> Result<f64, Fl
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::ValueKind;
+    use crate::ValueType;
     use crate::interpreter::scope::MapScope;
     use std::sync::Arc;
 
@@ -157,7 +157,7 @@ mod tests {
         FlFunction::new(
             "first",
             "returns first parameter",
-            vec![Parameter::new("a", "the value", ValueKinds::ALL)],
+            vec![Parameter::new("a", "the value", ValueTypes::ALL)],
             is_vararg,
             Box::new(First),
         )
@@ -196,7 +196,7 @@ mod tests {
         let multiply_by_2 = FlFunction::new(
             "multiply_by_2",
             "multiplies a number by 2",
-            vec![Parameter::new("n", "an integer or a float", ValueKinds::NUMBER)],
+            vec![Parameter::new("n", "an integer or a float", ValueTypes::NUMBER)],
             false,
             Box::new(|_scope: &dyn Scope, parameters: &Vec<Value>| match &parameters[0] {
                 Value::Integer(i) => Ok(Value::Integer(i * 2)),
@@ -238,12 +238,12 @@ mod tests {
     }
 
     #[test]
-    fn parameter_kinds_are_checked_before_the_callable_runs() {
+    fn parameter_types_are_checked_before_the_callable_runs() {
         let scope = MapScope::new("global", None);
         let text_only = FlFunction::new(
             "length",
-            "never called with wrong kinds",
-            vec![Parameter::new("s", "a text", ValueKind::Text)],
+            "never called with wrong types",
+            vec![Parameter::new("s", "a text", ValueType::Text)],
             false,
             Box::new(|_scope: &dyn Scope, _parameters: &Vec<Value>| -> Result<Value, FlError> {
                 Ok(Value::Nil)
@@ -264,7 +264,7 @@ mod tests {
         let function = FlFunction::new(
             "f",
             "",
-            vec![Parameter::new("n", "a number", ValueKinds::NUMBER)],
+            vec![Parameter::new("n", "a number", ValueTypes::NUMBER)],
             true,
             Box::new(|_scope: &dyn Scope, parameters: &Vec<Value>| Ok(parameters[0].clone())),
         );
