@@ -23,6 +23,7 @@ pub struct Parameter {
     name: String,
     comment: String,
     types: ValueTypes,
+    eager: bool,
 }
 
 impl Parameter {
@@ -32,11 +33,13 @@ impl Parameter {
         name: impl Into<String>,
         comment: impl Into<String>,
         types: impl Into<ValueTypes>,
+        eager: bool
     ) -> Self {
         Parameter {
             name: name.into(),
             comment: comment.into(),
             types: types.into(),
+            eager: eager,
         }
     }
 
@@ -157,7 +160,7 @@ mod tests {
         FlFunction::new(
             "first",
             "returns first parameter",
-            vec![Parameter::new("a", "the value", ValueTypes::ALL)],
+            vec![Parameter::new("a", "the value", ValueTypes::ALL, true)],
             is_vararg,
             Box::new(First),
         )
@@ -196,7 +199,7 @@ mod tests {
         let multiply_by_2 = FlFunction::new(
             "multiply_by_2",
             "multiplies a number by 2",
-            vec![Parameter::new("n", "an integer or a float", ValueTypes::NUMBER)],
+            vec![Parameter::new("n", "an integer or a float", ValueTypes::NUMBER, true)],
             false,
             Box::new(|_scope: &dyn Scope, parameters: &Vec<Value>| match &parameters[0] {
                 Value::Integer(i) => Ok(Value::Integer(i * 2)),
@@ -243,7 +246,7 @@ mod tests {
         let text_only = FlFunction::new(
             "length",
             "never called with wrong types",
-            vec![Parameter::new("s", "a text", ValueType::Text)],
+            vec![Parameter::new("s", "a text", ValueType::Text, true)],
             false,
             Box::new(|_scope: &dyn Scope, _parameters: &Vec<Value>| -> Result<Value, FlError> {
                 Ok(Value::Nil)
@@ -264,7 +267,7 @@ mod tests {
         let function = FlFunction::new(
             "f",
             "",
-            vec![Parameter::new("n", "a number", ValueTypes::NUMBER)],
+            vec![Parameter::new("n", "a number", ValueTypes::NUMBER, true)],
             true,
             Box::new(|_scope: &dyn Scope, parameters: &Vec<Value>| Ok(parameters[0].clone())),
         );
