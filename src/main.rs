@@ -22,10 +22,9 @@ fn main() {
             Parameter::new("b", "", ValueType::Integer, true),
         ],
         false,
-        Box::new(|_scope: &dyn Scope, p: &Vec<Value>| match (&p[0], &p[1]) {
-            (Value::Integer(a), Value::Integer(b)) => Ok(Value::Integer(a + b)),
-            _ => Err(FlError::new("not integers")),
-        }),
+        Box::new(|_scope: &dyn Scope, p: &Vec<Value>| 
+            Ok(Value::Integer(p[0].as_integer()? + p[1].as_integer()?))
+        ),
     );
     scope.put("add", Value::Function(Arc::new(add)));
 

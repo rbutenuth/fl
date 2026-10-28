@@ -1,3 +1,4 @@
+use std::format;
 use std::{fmt, sync::Arc};
 
 use crate::FlError;
@@ -168,6 +169,50 @@ impl Value {
             Value::Map() => ValueType::Map,
             Value::Object() => ValueType::Object,
             Value::Function(_) => ValueType::Function,
+        }
+    }
+
+    pub fn as_integer(&self) -> Result<i64, FlError> {
+        match self {
+            Value::Integer(i) => Ok(*i),
+            _ => Err(FlError::new(format!("Not an integer: {:?}", self)))
+        }
+    }
+
+    pub fn as_float(&self) -> Result<f64, FlError> {
+        match self {
+            Value::Float(f) => Ok(*f),
+            _ => Err(FlError::new(format!("Not a float: {:?}", self)))
+        }
+    }
+
+    pub fn as_list(&self) -> Result<FlList, FlError> {
+        match self {
+            Value::List(l) => Ok(l.clone()),
+            _ => Err(FlError::new(format!("Not a list: {:?}", self)))
+        }
+    }
+
+    pub fn as_symbol(&self) -> Result<Arc<str>, FlError> {
+        match self {
+            Value::Symbol(s, _) => Ok(s.clone()),
+            _ => Err(FlError::new(format!("Not a symbol: {:?}", self)))
+        }
+    }
+
+    pub fn as_text(&self) -> Result<Arc<str>, FlError> {
+        match self {
+            Value::Text(t) => Ok(t.clone()),
+            _ => Err(FlError::new(format!("Not a string: {:?}", self)))
+        }
+    }
+
+    // TODO: as_map, as_object
+
+    pub fn as_function(&self) -> Result<Arc<FlFunction>, FlError> {
+        match self {
+            Value::Function(f) => Ok(f.clone()),
+            _ => Err(FlError::new(format!("Not a function: {:?}", self)))
         }
     }
 
