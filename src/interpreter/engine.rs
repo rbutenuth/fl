@@ -5,7 +5,7 @@ use crate::interpreter::Scope;
 use crate::interpreter::scope::MapScope;
 
 pub struct Engine {
-    scope: Arc<dyn Scope>,
+    pub scope: Arc<dyn Scope>,
 }
 
 impl Engine {

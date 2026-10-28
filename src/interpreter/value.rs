@@ -2,6 +2,7 @@ use std::{fmt, sync::Arc};
 
 use crate::FlError;
 use crate::interpreter::Scope;
+use crate::interpreter::function::FlFunction;
 use crate::list::FlList;
 
 #[derive(Debug)]
@@ -14,7 +15,7 @@ pub enum Value {
     Text(Arc<str>),
     Map(),      // TODO: implement
     Object(),   // TODO: implement
-    Function(), // TODO: implement
+    Function(Arc<FlFunction>),
 }
 
 impl Clone for Value {
@@ -28,7 +29,7 @@ impl Clone for Value {
             Self::List(list) => Self::List(list.clone()),
             Self::Map() => Self::Map(),
             Self::Object() => Self::Object(),
-            Self::Function() => Self::Function(),
+            Self::Function(f) => Self::Function(f.clone()),
         }
     }
 }
@@ -41,7 +42,8 @@ impl PartialEq for Value {
             (Value::Float(s), Value::Float(o)) => s == o,
             (Value::Text(s), Value::Text(o)) => s == o,
             (Value::Symbol(s, _), Value::Symbol(o, _)) => s == o,
-            // TODO: Function, List, etc.
+            (Value::Function(s), Value::Function(o)) => Arc::ptr_eq(s, o),
+            // TODO: List, etc.
             _ => false,
         }
     }
@@ -165,14 +167,14 @@ impl Value {
             Value::Text(_) => ValueType::Text,
             Value::Map() => ValueType::Map,
             Value::Object() => ValueType::Object,
-            Value::Function() => ValueType::Function,
+            Value::Function(_) => ValueType::Function,
         }
     }
 
     pub fn evaluate(&self, scope: &Arc<dyn Scope>) -> Result<Value, FlError> {
         println!("evaluating {:?}", self);
         match self {
-            Value::List(_fl_list) => todo!(),
+            Value::List(list) => Self::evaluate_list(scope, list),
             Value::Symbol(name, _) => Ok(scope.get(name)),
             Value::Map() => todo!(),
             Value::Object() => todo!(),
@@ -180,11 +182,31 @@ impl Value {
             _ => Ok(self.clone())
         }
     }
+
+    /// If list is empty: FlError, empty list can't be evaluated.
+    /// Otherwise: Evaluate first element. If it is not a Function: FlError.
+    /// Call the function with the remaining list elements as parameters.
+    /// But only if the number of parameters matches. It can be larger then
+    /// the specified number in case the function is variable parameter list capable.
+    fn evaluate_list(scope: &Arc<dyn Scope>, list: &FlList) -> Result<Value, FlError> {
+        let mut elements = list.into_iter();
+        let first = elements
+            .next()
+            .ok_or_else(|| FlError::new("Can't evaluate an empty list"))?;
+        match first.evaluate(scope)? {
+            Value::Function(function) => function.evaluate_and_call(scope, elements.collect()),
+            other => Err(FlError::new(format!(
+                "First element of a list must evaluate to a Function, but got {:?}",
+                other.as_value_type()
+            ))),
+        }
+    }
 }
 
 #[cfg(test)]
 mod tests {
     use super::*;
+    use crate::interpreter::function::Parameter;
     use crate::interpreter::scope::MapScope;
 
     fn symbol(name: &str) -> Value {
@@ -231,7 +253,10 @@ mod tests {
         assert_eq!(ValueType::Text, Value::Text(Arc::from("t")).as_value_type());
         assert_eq!(ValueType::Map, Value::Map().as_value_type());
         assert_eq!(ValueType::Object, Value::Object().as_value_type());
-        assert_eq!(ValueType::Function, Value::Function().as_value_type());
+        let function = FlFunction::new("f", "", vec![], false, Box::new(
+            |_scope: &dyn Scope, _parameters: &Vec<Value>| Ok(Value::Nil),
+        ));
+        assert_eq!(ValueType::Function, Value::Function(Arc::new(function)).as_value_type());
     }
 
     #[test]
@@ -271,6 +296,93 @@ mod tests {
             Ok(Value::Text(Arc::from("hello"))),
             commented.evaluate(&scope)
         );
+    }
+
+    fn global_with_functions() -> Arc<dyn Scope> {
+        let scope: Arc<dyn Scope> = Arc::new(MapScope::new("global", None));
+        // Eager, adds two integers.
+        let add = FlFunction::new(
+            "add",
+            "adds two integers",
+            vec![
+                Parameter::new("a", "", ValueType::Integer, true),
+                Parameter::new("b", "", ValueType::Integer, true),
+            ],
+            false,
+            Box::new(|_scope: &dyn Scope, p: &Vec<Value>| match (&p[0], &p[1]) {
+                (Value::Integer(a), Value::Integer(b)) => Ok(Value::Integer(a + b)),
+                _ => Err(FlError::new("not integers")),
+            }),
+        );
+        // Not eager, returns its argument unevaluated.
+        let quote = FlFunction::new(
+            "quote",
+            "returns its argument unevaluated",
+            vec![Parameter::new("a", "", ValueTypes::ALL, false)],
+            false,
+            Box::new(|_scope: &dyn Scope, p: &Vec<Value>| Ok(p[0].clone())),
+        );
+        scope.put("add", Value::Function(Arc::new(add)));
+        scope.put("quote", Value::Function(Arc::new(quote)));
+        scope
+    }
+
+    fn list(values: Vec<Value>) -> Value {
+        Value::List(FlList::from_vec_values(values))
+    }
+
+    #[test]
+    fn evaluate_list_calls_function_with_evaluated_parameters() {
+        let scope = global_with_functions();
+        scope.put("x", Value::Integer(40));
+
+        let call = list(vec![symbol("add"), symbol("x"), Value::Integer(2)]);
+
+        assert_eq!(Ok(Value::Integer(42)), call.evaluate(&scope));
+    }
+
+    #[test]
+    fn evaluate_list_evaluates_nested_lists() {
+        let scope = global_with_functions();
+        let inner = list(vec![symbol("add"), Value::Integer(1), Value::Integer(2)]);
+
+        let call = list(vec![symbol("add"), inner, Value::Integer(4)]);
+
+        assert_eq!(Ok(Value::Integer(7)), call.evaluate(&scope));
+    }
+
+    #[test]
+    fn evaluate_list_does_not_evaluate_non_eager_parameters() {
+        let scope = global_with_functions();
+        scope.put("x", Value::Integer(40));
+
+        let call = list(vec![symbol("quote"), symbol("x")]);
+
+        assert_eq!(Ok(symbol("x")), call.evaluate(&scope));
+    }
+
+    #[test]
+    fn evaluate_empty_list_is_error() {
+        let scope = global_with_functions();
+
+        assert!(Value::List(FlList::empty()).evaluate(&scope).is_err());
+    }
+
+    #[test]
+    fn evaluate_list_with_non_function_first_is_error() {
+        let scope = global_with_functions();
+
+        assert!(list(vec![Value::Integer(1), Value::Integer(2)]).evaluate(&scope).is_err());
+        assert!(list(vec![symbol("unbound")]).evaluate(&scope).is_err());
+    }
+
+    #[test]
+    fn evaluate_list_with_wrong_parameter_type_is_error() {
+        let scope = global_with_functions();
+
+        let call = list(vec![symbol("add"), Value::Text(Arc::from("a")), Value::Integer(2)]);
+
+        assert!(call.evaluate(&scope).is_err());
     }
 
     #[test]

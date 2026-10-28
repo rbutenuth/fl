@@ -130,6 +130,12 @@ impl fmt::Display for FlFunction {
     }
 }
 
+impl fmt::Debug for FlFunction {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        write!(f, "FlFunction({})", self.name)
+    }
+}
+
 impl FlFunction {
     pub fn new(
         name: impl Into<String>,
@@ -145,6 +151,27 @@ impl FlFunction {
             is_vararg,
             callable,
         }
+    }
+
+    /// Evaluate the eager arguments in `scope`, then call the function.
+    /// Arguments of non-eager parameters are passed as they are. Arguments beyond
+    /// the declared parameters (vararg) are evaluated when the last parameter 
+    /// is eager.
+    pub fn evaluate_and_call(
+        &self,
+        scope: &Arc<dyn Scope>,
+        arguments: Vec<Value>,
+    ) -> Result<Value, FlError> {
+        let mut parameters = Vec::with_capacity(arguments.len());
+        for (i, argument) in arguments.into_iter().enumerate() {
+            let eager = self
+                .parameters
+                .get(i)
+                .or(self.parameters.last())
+                .map_or(false, |p| p.eager);
+            parameters.push(if eager { argument.evaluate(scope)? } else { argument });
+        }
+        self.call(&**scope, parameters)
     }
 
     pub fn call(&self, scope: &dyn Scope, parameters: Vec<Value>) -> Result<Value, FlError> {
@@ -169,10 +196,6 @@ impl FlFunction {
             }
         }
     }
-}
-
-pub fn x() -> usize {
-    42
 }
 
 /// Evaluate `value` and return the integer it evaluates to. Any other result is an error.
