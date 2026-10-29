@@ -6,6 +6,7 @@ use crate::{
         token::{Token, Type::*},
     },
 };
+use crate::interpreter::Symbol;
 
 pub struct Parser {
     scanner: Scanner,
@@ -38,7 +39,7 @@ impl Parser {
             Quote => todo!(),
             Integer { value } => Ok(self.integer(value)),
             Float { value } => Ok(self.float(value)),
-            Symbol { value, comment } => Ok(self.symbol(value, comment)),
+            TSymbol { value, comment } => Ok(self.symbol(value, comment)),
             Text { value } => Ok(self.text(value)),
             NonScanable { message } => Err(FlError::new(&*message)), // TODO: Position
             _ => Err(FlError::new("unexpected )")), // TODO: Position
@@ -61,7 +62,7 @@ impl Parser {
 
     fn symbol(&mut self, symbol: Arc<str>, comment: Option<Arc<str>>) -> Value {
         self.fetch_next_token();
-        Value::Symbol(symbol, comment)
+        Value::Symbol(Symbol::new(symbol, comment))
     }
 
     fn text(&mut self, text: Arc<str>) -> Value {
@@ -100,6 +101,7 @@ mod tests {
     use crate::parser::parser::Parser;
     use crate::list::tests::*;
     use std::sync::Arc;
+    use crate::interpreter::Symbol;
 
     #[test]
     fn test_empty_source() {
@@ -131,15 +133,18 @@ mod tests {
         let mut p = Parser::parser_from_str("; bla fasel\nfoo");
         let symbol = p.next().unwrap().unwrap();
         // Comment is not considered for equality of symbols
-        assert_eq!(Value::Symbol(Arc::from("foo"), None), symbol);
+        let expected = Value::Symbol(Symbol::new(Arc::from("foo"), None));
+        assert_eq!(expected, symbol);
         match symbol {
-            Value::Symbol(name, comment) => {
-                assert_eq!("foo", &*name);
-                assert_eq!(Some("bla fasel"), comment.as_deref());
+            Value::Symbol(s) => {
+                assert_eq!(*"foo", *s.name);
+                assert_eq!(*"bla fasel", *s.comment.unwrap());
             }
             _ => panic!("symbol expected"),
         }
     }
+
+// Value::Symbol(Symbol::new(symbol, comment))
 
     #[test]
     fn test_unexpected_right_paren() {

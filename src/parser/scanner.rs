@@ -173,7 +173,7 @@ impl Scanner {
             None
         };
         Token::new_with_pos(
-            Type::Symbol {
+            Type::TSymbol {
                 value: Arc::from(symbol_text.as_str()),
                 comment: opt_comment,
             },
@@ -483,7 +483,7 @@ mod tests {
         let mut sc = Scanner::from_str("foo \n; bar");
         let next = sc.next().unwrap();
         assert_eq!(Position::anonymous(1, 1), next.position.unwrap());
-        assert_eq!(Type::Symbol { value: Arc::from("foo"), comment: Option::None }, next.t_type);
+        assert_eq!(Type::TSymbol { value: Arc::from("foo"), comment: Option::None }, next.t_type);
     }
 
     #[test]
@@ -491,7 +491,7 @@ mod tests {
         let mut sc = Scanner::from_str("-foo");
         let next = sc.next().unwrap();
         assert_eq!(Position::anonymous(1, 1), next.position.unwrap());
-        assert_eq!(Type::Symbol { value: Arc::from("-foo"), comment: Option::None }, next.t_type);
+        assert_eq!(Type::TSymbol { value: Arc::from("-foo"), comment: Option::None }, next.t_type);
     }
 
     #[test]

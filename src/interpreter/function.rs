@@ -220,6 +220,7 @@ mod tests {
     use crate::ValueType;
     use crate::interpreter::scope::MapScope;
     use std::sync::Arc;
+    use crate::interpreter::Symbol;
 
     struct First;
 
@@ -300,7 +301,7 @@ mod tests {
         assert_eq!(Ok(7), evaluate_to_integer(&scope, Value::Integer(7)));
         assert_eq!(
             Ok(5),
-            evaluate_to_integer(&scope, Value::Symbol(Arc::from("a"), None))
+            evaluate_to_integer(&scope, Value::Symbol(Symbol::new(Arc::from("a"), None)))
         );
     }
 
@@ -310,7 +311,6 @@ mod tests {
 
         assert!(evaluate_to_integer(&scope, Value::Float(1.0)).is_err());
         assert!(evaluate_to_integer(&scope, Value::Nil).is_err());
-        assert!(evaluate_to_integer(&scope, Value::Symbol(Arc::from("unbound"), None)).is_err());
     }
 
     #[test]

@@ -2,8 +2,7 @@ use std::format;
 use std::{fmt, sync::Arc};
 
 use crate::FlError;
-use crate::interpreter::Scope;
-use crate::interpreter::function::FlFunction;
+use crate::interpreter::{Scope, Symbol, FlFunction};
 use crate::list::FlList;
 
 #[derive(Debug)]
@@ -12,7 +11,7 @@ pub enum Value {
     Integer(i64),
     Float(f64),
     List(FlList),
-    Symbol(Arc<str>, Option<Arc<str>>), // name, comment
+    Symbol(Symbol),
     Text(Arc<str>),
     Map(),      // TODO: implement
     Object(),   // TODO: implement
@@ -25,7 +24,7 @@ impl Clone for Value {
             Self::Nil => Self::Nil,
             Self::Integer(i) => Self::Integer(*i),
             Self::Float(f) => Self::Float(*f),
-            Self::Symbol(n, c) => Self::Symbol(n.clone(), c.clone()),
+            Self::Symbol(s) => Self::Symbol(s.clone()),
             Self::Text(s) => Self::Text(s.clone()),
             Self::List(list) => Self::List(list.clone()),
             Self::Map() => Self::Map(),
@@ -42,7 +41,7 @@ impl PartialEq for Value {
             (Value::Integer(s), Value::Integer(o)) => s == o,
             (Value::Float(s), Value::Float(o)) => s == o,
             (Value::Text(s), Value::Text(o)) => s == o,
-            (Value::Symbol(s, _), Value::Symbol(o, _)) => s == o,
+            (Value::Symbol(s), Value::Symbol(o )) => s == o,
             (Value::Function(s), Value::Function(o)) => Arc::ptr_eq(s, o),
             // TODO: List, etc.
             _ => false,
@@ -193,9 +192,9 @@ impl Value {
         }
     }
 
-    pub fn as_symbol(&self) -> Result<Arc<str>, FlError> {
+    pub fn as_symbol(&self) -> Result<Symbol, FlError> {
         match self {
-            Value::Symbol(s, _) => Ok(s.clone()),
+            Value::Symbol(s) => Ok(s.clone()),
             _ => Err(FlError::new(format!("Not a symbol: {:?}", self)))
         }
     }
@@ -220,7 +219,7 @@ impl Value {
         println!("evaluating {:?}", self);
         match self {
             Value::List(list) => Self::evaluate_list(scope, list),
-            Value::Symbol(name, _) => Ok(scope.get(name)),
+            Value::Symbol(s) => Ok(scope.get(&s.name)),
             Value::Map() => todo!(),
             Value::Object() => todo!(),
             // Nil, Integer, Float, Text, Function: just clone
@@ -255,7 +254,7 @@ mod tests {
     use crate::interpreter::scope::MapScope;
 
     fn symbol(name: &str) -> Value {
-        Value::Symbol(Arc::from(name), None)
+        Value::Symbol(Symbol::new(Arc::from(name), None))
     }
 
     #[test]
@@ -335,7 +334,7 @@ mod tests {
     fn evaluate_symbol_ignores_comment() {
         let scope: Arc<dyn Scope> = Arc::new(MapScope::new("global", None));
         scope.put("a", Value::Text(Arc::from("hello")));
-        let commented = Value::Symbol(Arc::from("a"), Some(Arc::from("a comment")));
+        let commented = Value::Symbol(Symbol::new(Arc::from("a"), Some(Arc::from("a comment"))));
 
         assert_eq!(
             Ok(Value::Text(Arc::from("hello"))),

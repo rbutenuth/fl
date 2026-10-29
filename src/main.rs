@@ -2,7 +2,7 @@ use std::{env, fs, process, sync::Arc};
 
 use fl::interpreter::{Engine, Scope, function::{FlFunction, Parameter}};
 use fl::parser::Parser;
-use fl::{FlError, Value, ValueType};
+use fl::{Value, ValueType};
 
 fn main() {
     let files: Vec<String> = env::args().skip(1).collect();

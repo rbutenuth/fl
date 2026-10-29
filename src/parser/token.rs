@@ -12,7 +12,7 @@ pub enum Type {
     Float {
         value: f64,
     },
-    Symbol {
+    TSymbol {
         value: Arc<str>,
         comment: Option<Arc<str>>
     },
@@ -32,7 +32,7 @@ impl Display for Type {
             Self::Quote => write!(f, "'"),
             Self::Integer { value } => write!(f, "{}", value),
             Self::Float { value } => write!(f, "{}", value),
-            Self::Symbol{ value, comment} => match comment {
+            Self::TSymbol{ value, comment} => match comment {
                 Some(c) => write!(f, "\n; {}\n{}", c, value),
                 None => write!(f, "{}", value),
             },
@@ -102,7 +102,7 @@ mod tests {
 
     #[test]
     fn test_symbol() {
-        let t = Type::Symbol {
+        let t = Type::TSymbol {
             value: Arc::from("i-am-a-symbol"),
             comment: None,
         };
@@ -111,7 +111,7 @@ mod tests {
 
     #[test]
     fn test_symbol_with_comment() {
-        let t = Type::Symbol {
+        let t = Type::TSymbol {
             value: Arc::from("i-am-a-symbol"),
             comment: Some(Arc::from("I come with a comment!")),
         };
