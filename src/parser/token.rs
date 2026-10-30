@@ -3,20 +3,20 @@ use super::position::Position;
 
 #[derive(Debug, PartialEq)]
 pub enum Type {
-    LeftParen,
-    RightParen,
-    Quote,
-    Integer {
+    TLeftParen,
+    TRightParen,
+    TQuote,
+    TInteger {
         value: i64,
     },
-    Float {
+    TFloat {
         value: f64,
     },
     TSymbol {
         value: Arc<str>,
         comment: Option<Arc<str>>
     },
-    Text {
+    TText {
         value: Arc<str>,
     },
     NonScanable {
@@ -27,16 +27,16 @@ pub enum Type {
 impl Display for Type {
     fn fmt(&self, f: &mut Formatter<'_>) -> Result {
         match self {
-            Self::LeftParen => write!(f, "("),
-            Self::RightParen => write!(f, ")"),
-            Self::Quote => write!(f, "'"),
-            Self::Integer { value } => write!(f, "{}", value),
-            Self::Float { value } => write!(f, "{}", value),
+            Self::TLeftParen => write!(f, "("),
+            Self::TRightParen => write!(f, ")"),
+            Self::TQuote => write!(f, "'"),
+            Self::TInteger { value } => write!(f, "{}", value),
+            Self::TFloat { value } => write!(f, "{}", value),
             Self::TSymbol{ value, comment} => match comment {
                 Some(c) => write!(f, "\n; {}\n{}", c, value),
                 None => write!(f, "{}", value),
             },
-            Self::Text { value } => write!(f, "\"{}\"", value),
+            Self::TText { value } => write!(f, "\"{}\"", value),
             Self::NonScanable { message } => write!(f, "{}", message),
         }
     }
@@ -83,20 +83,20 @@ mod tests {
 
     #[test]
     fn test_primitives() {
-        assert_eq!(Type::LeftParen.to_string(), "(");
-        assert_eq!(Type::RightParen.to_string(), ")");
-        assert_eq!(Type::Quote.to_string(), "'");
+        assert_eq!(Type::TLeftParen.to_string(), "(");
+        assert_eq!(Type::TRightParen.to_string(), ")");
+        assert_eq!(Type::TQuote.to_string(), "'");
     }
 
     #[test]
     fn test_integer64() {
-        let t = Type::Integer { value: 42 };
+        let t = Type::TInteger { value: 42 };
         assert_eq!(t.to_string(), "42");
     }
 
     #[test]
     fn test_float64() {
-        let t = Type::Float { value: 3.14 };
+        let t = Type::TFloat { value: 3.14 };
         assert_eq!(t.to_string(), "3.14");
     }
 
@@ -120,7 +120,7 @@ mod tests {
 
     #[test]
     fn test_text() {
-        let t = Type::Text {
+        let t = Type::TText {
             value: Arc::from("i-am-a-string"),
         };
         assert_eq!(t.to_string(), "\"i-am-a-string\"");
@@ -136,15 +136,15 @@ mod tests {
 
     #[test]
     fn test_equal_type() {
-        let t1 = Type::Integer { value: 1 };
-        let t2 = Type::Integer { value: 1 };
+        let t1 = Type::TInteger { value: 1 };
+        let t2 = Type::TInteger { value: 1 };
         assert_eq!(t1, t2);
     }
 
     #[test]
     fn test_token_without_position() {
-        let t = Token::new(Type::Integer { value: 42 });
-        assert_eq!(Type::Integer { value: 42 }, t.t_type);
+        let t = Token::new(Type::TInteger { value: 42 });
+        assert_eq!(Type::TInteger { value: 42 }, t.t_type);
         assert!(t.position.is_none());
     }
 
@@ -152,8 +152,8 @@ mod tests {
     fn test_token_with_position() {
         let file = Rc::new(String::from("file.fpl"));
         let pos = Position::new(file.clone(), 1, 10);
-        let t = Token::new_with_pos(Type::Integer { value: 42 }, pos);
-        assert_eq!(Type::Integer { value: 42 }, t.t_type);
+        let t = Token::new_with_pos(Type::TInteger { value: 42 }, pos);
+        assert_eq!(Type::TInteger { value: 42 }, t.t_type);
         assert!(t.position.is_some());
         let pos2 = t.position.unwrap();
         assert_eq!(pos2.line, 1);

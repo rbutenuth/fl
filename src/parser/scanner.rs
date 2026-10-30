@@ -215,7 +215,7 @@ impl Scanner {
             return Token::new_error("Unterminated string at end of input", start);
         }
         self.move_one_char(); // skip trailing "
-        Token::new_with_pos(Type::Text { value: Arc::from(text.as_str()) }, start)
+        Token::new_with_pos(Type::TText { value: Arc::from(text.as_str()) }, start)
     }
 
     fn number(&mut self) -> Token {
@@ -258,9 +258,9 @@ impl Scanner {
                 }
                 d_value *= (10 as f64).powi(if negative_exponent { -exp_value } else { exp_value });
             }
-            Token::new_with_pos(Type::Float { value: if negative {-d_value} else {d_value} }, start)
+            Token::new_with_pos(Type::TFloat { value: if negative {-d_value} else {d_value} }, start)
         } else {
-            Token::new_with_pos(Type::Integer { value: if negative {-value} else {value} }, start)
+            Token::new_with_pos(Type::TInteger { value: if negative {-value} else {value} }, start)
         }
     }
 
@@ -327,9 +327,9 @@ impl Iterator for Scanner {
         } else {
             let position = self.current_position();
             Some(match self.current_char() {
-                '(' => { self.move_one_char(); Token::new_with_pos(Type::LeftParen, position) },
-                ')' => { self.move_one_char(); Token::new_with_pos(Type::RightParen, position) },
-                '\'' => { self.move_one_char(); Token::new_with_pos(Type::Quote, position) },
+                '(' => { self.move_one_char(); Token::new_with_pos(Type::TLeftParen, position) },
+                ')' => { self.move_one_char(); Token::new_with_pos(Type::TRightParen, position) },
+                '\'' => { self.move_one_char(); Token::new_with_pos(Type::TQuote, position) },
                 '0'..='9' => { self.number() },
                 '-' if self.next_char_is_digit() => { self.number() },
                 ch if !NON_SYMBOL_CHARS.contains(ch) => self.symbol(),
@@ -499,7 +499,7 @@ mod tests {
         let mut sc = Scanner::from_str("42");
         let next = sc.next().unwrap();
         assert_eq!(Position::anonymous(1, 1), next.position.unwrap());
-        assert_eq!(Type::Integer { value: 42 }, next.t_type);
+        assert_eq!(Type::TInteger { value: 42 }, next.t_type);
     }
 
     #[test]

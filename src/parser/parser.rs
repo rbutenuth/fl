@@ -35,12 +35,12 @@ impl Parser {
 
     pub fn value(&mut self, token: Token) -> Result<Value, FlError> {
         match token.t_type {
-            LeftParen => self.list(),
-            Quote => todo!(),
-            Integer { value } => Ok(self.integer(value)),
-            Float { value } => Ok(self.float(value)),
+            TLeftParen => self.list(),
+            TQuote => todo!(),
+            TInteger { value } => Ok(self.integer(value)),
+            TFloat { value } => Ok(self.float(value)),
             TSymbol { value, comment } => Ok(self.symbol(value, comment)),
-            Text { value } => Ok(self.text(value)),
+            TText { value } => Ok(self.text(value)),
             NonScanable { message } => Err(FlError::new(&*message)), // TODO: Position
             _ => Err(FlError::new("unexpected )")), // TODO: Position
         }
@@ -78,7 +78,7 @@ impl Parser {
         loop {
             match &self.next_token {
                 None => return Err(FlError::new("Unexpected end of source in list")), // TODO: position
-                Some(token) if matches!(token.t_type, RightParen) => break,
+                Some(token) if matches!(token.t_type, TRightParen) => break,
                 Some(_) => {
                     let token = self.next_token.take().unwrap();
                     elements.push(self.value(token)?);
@@ -133,8 +133,7 @@ mod tests {
         let mut p = Parser::parser_from_str("; bla fasel\nfoo");
         let symbol = p.next().unwrap().unwrap();
         // Comment is not considered for equality of symbols
-        let expected = Value::Symbol(Symbol::new(Arc::from("foo"), None));
-        assert_eq!(expected, symbol);
+        assert_eq!(Value::Symbol(Symbol::new(Arc::from("foo"), None)), symbol);
         match symbol {
             Value::Symbol(s) => {
                 assert_eq!(*"foo", *s.name);
