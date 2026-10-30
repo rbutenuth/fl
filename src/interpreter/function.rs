@@ -108,6 +108,7 @@ impl Parameter {
 }
 
 pub struct FlFunction {
+    package: String,
     name: String,
     comment: String,
     parameters: Vec<Parameter>,
@@ -117,6 +118,7 @@ pub struct FlFunction {
 
 impl fmt::Display for FlFunction {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        writeln!(f, "package: {}", self.package)?;
         writeln!(f, "name: {}", self.name)?;
         writeln!(f, "comment: {}", self.comment)?;
         writeln!(f, "is_vararg: {}", self.is_vararg)?;
@@ -138,6 +140,7 @@ impl fmt::Debug for FlFunction {
 
 impl FlFunction {
     pub fn new(
+        package: impl Into<String>,
         name: impl Into<String>,
         comment: impl Into<String>,
         parameters: Vec<Parameter>,
@@ -145,12 +148,27 @@ impl FlFunction {
         callable: Box<dyn Callable>,
     ) -> Self {
         FlFunction {
+            package: package.into(),
             name: name.into(),
             comment: comment.into(),
             parameters,
             is_vararg,
             callable,
         }
+    }
+
+    pub fn put_in_scope(
+        scope: &dyn Scope,
+        package: impl Into<String>,
+        name: impl Into<String>,
+        comment: impl Into<String>,
+        parameters: Vec<Parameter>,
+        is_vararg: bool,
+        callable: Box<dyn Callable>,
+    ) {
+        let name = name.into();
+        let f = Self::new(package, name.clone(), comment, parameters, is_vararg, callable);
+        scope.put(&name, Value::Function(Arc::new(f)));
     }
 
     /// Evaluate the eager arguments in `scope`, then call the function.
@@ -232,6 +250,7 @@ mod tests {
 
     fn function(is_vararg: bool) -> FlFunction {
         FlFunction::new(
+            "some package",
             "first",
             "returns first parameter",
             vec![Parameter::new("a", "the value", ValueTypes::ALL, true)],
@@ -271,6 +290,7 @@ mod tests {
     fn closure_as_callable_doubles_numbers() {
         let scope: MapScope = MapScope::new("global", None);
         let multiply_by_2 = FlFunction::new(
+            "some package",
             "multiply_by_2",
             "multiplies a number by 2",
             vec![Parameter::new("n", "an integer or a float", ValueTypes::NUMBER, true)],
@@ -317,6 +337,7 @@ mod tests {
     fn parameter_types_are_checked_before_the_callable_runs() {
         let scope = MapScope::new("global", None);
         let text_only = FlFunction::new(
+            "some package",
             "length",
             "never called with wrong types",
             vec![Parameter::new("s", "a text", ValueType::Text, true)],
@@ -338,6 +359,7 @@ mod tests {
     fn vararg_parameters_beyond_declared_ones_are_not_checked() {
         let scope = MapScope::new("global", None);
         let function = FlFunction::new(
+            "p",
             "f",
             "",
             vec![Parameter::new("n", "a number", ValueTypes::NUMBER, true)],

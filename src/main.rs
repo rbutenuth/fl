@@ -14,21 +14,6 @@ fn main() {
     let engine = Engine::new();
     let scope = Arc::clone(&engine.scope);
 
-    let add = FlFunction::new(
-        "add",
-        "adds two integers",
-        vec![
-            Parameter::new("a", "", ValueType::Integer, true),
-            Parameter::new("b", "", ValueType::Integer, true),
-        ],
-        false,
-        Box::new(|_scope: &dyn Scope, p: &Vec<Value>| 
-            Ok(Value::Integer(p[0].as_integer()? + p[1].as_integer()?))
-        ),
-    );
-    scope.put("add", Value::Function(Arc::new(add)));
-
-
     for file in &files {
         let source = match fs::read_to_string(file) {
             Ok(s) => s,

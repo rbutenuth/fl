@@ -297,7 +297,7 @@ mod tests {
         assert_eq!(ValueType::Text, Value::Text(Arc::from("t")).as_value_type());
         assert_eq!(ValueType::Map, Value::Map().as_value_type());
         assert_eq!(ValueType::Object, Value::Object().as_value_type());
-        let function = FlFunction::new("f", "", vec![], false, Box::new(
+        let function = FlFunction::new("p", "f", "", vec![], false, Box::new(
             |_scope: &dyn Scope, _parameters: &Vec<Value>| Ok(Value::Nil),
         ));
         assert_eq!(ValueType::Function, Value::Function(Arc::new(function)).as_value_type());
@@ -346,6 +346,7 @@ mod tests {
         let scope: Arc<dyn Scope> = Arc::new(MapScope::new("global", None));
         // Eager, adds two integers.
         let add = FlFunction::new(
+            "package",
             "add",
             "adds two integers",
             vec![
@@ -360,6 +361,7 @@ mod tests {
         );
         // Not eager, returns its argument unevaluated.
         let quote = FlFunction::new(
+            "package",
             "quote",
             "returns its argument unevaluated",
             vec![Parameter::new("a", "", ValueTypes::ALL, false)],
