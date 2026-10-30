@@ -1,3 +1,5 @@
 #!/home/butenuth/rust/fl/target/debug/fl
 
-(add 3 4)
+(size (quote (a b c)))
+
+(is-empty (quote (a)))

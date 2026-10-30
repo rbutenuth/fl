@@ -8,3 +8,4 @@ pub use engine::Engine;
 pub use symbol::Symbol;
 pub use scope::Scope;
 pub use function::FlFunction;
+pub use function::Parameter;
