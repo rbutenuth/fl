@@ -1,8 +1,7 @@
 use std::{env, fs, process, sync::Arc};
 
-use fl::interpreter::{Engine, Scope, function::{FlFunction, Parameter}};
+use fl::interpreter::{Engine};
 use fl::parser::Parser;
-use fl::{Value, ValueType};
 
 fn main() {
     let files: Vec<String> = env::args().skip(1).collect();
@@ -12,7 +11,7 @@ fn main() {
     }
 
     let engine = Engine::new();
-    let scope = Arc::clone(&engine.scope);
+    let _scope = Arc::clone(&engine.scope);
 
     for file in &files {
         let source = match fs::read_to_string(file) {
