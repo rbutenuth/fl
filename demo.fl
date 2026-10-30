@@ -2,4 +2,4 @@
 
 (size (quote (a b c)))
 
-(is-empty (quote (a)))
+(is-empty '())

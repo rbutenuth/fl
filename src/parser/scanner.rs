@@ -417,7 +417,7 @@ mod tests {
 
     #[test]
     fn test_quote() {
-        assert_eq!(String::from(")"), scan_and_collect(")"));
+        assert_eq!(String::from("'"), scan_and_collect("'"));
     }
 
     #[test]

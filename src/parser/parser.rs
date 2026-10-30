@@ -36,7 +36,7 @@ impl Parser {
     pub fn value(&mut self, token: Token) -> Result<Value, FlError> {
         match token.t_type {
             TLeftParen => self.list(),
-            TQuote => todo!(),
+            TQuote => self.quote(),
             TInteger { value } => Ok(self.integer(value)),
             TFloat { value } => Ok(self.float(value)),
             TSymbol { value, comment } => Ok(self.symbol(value, comment)),
@@ -88,6 +88,14 @@ impl Parser {
 
         self.fetch_next_token(); // skip )
         Ok(Value::List(FlList::from_vec_values(elements)))
+    }
+
+    fn quote(&mut self) -> Result<Value, FlError> {
+        self.fetch_next_token(); // skip '
+        let symbol = Value::Symbol(Symbol::new(Arc::from("quote"), None));
+        let token = self.next_token.take().unwrap();
+        let value = self.value(token)?;
+        Ok(Value::List(FlList::from_pair(symbol, value)))
     }
 
     fn fetch_next_token(&mut self) {
