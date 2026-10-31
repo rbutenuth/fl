@@ -3,11 +3,47 @@ use crate::interpreter::function::Parameter;
 
 pub fn add_list_functions(scope: &dyn Scope) {
 
+        FlFunction::put_in_scope(&*scope, 
+        "list",
+        "add-front",
+        "Return a new list with expression added in front of the given list.",
+        vec![
+            Parameter::new_from_spec("value", "Value to add", "E").unwrap(),
+            Parameter::new_from_spec("list", "List where element is added.", "EL").unwrap(),
+        ],
+        false,
+        Box::new(|_scope: &dyn Scope, p: &Vec<Value>|{
+            Ok(Value::List(FlList::add_at_start(&p[1].as_list()?, p[0].clone())))
+        }));
+
+        FlFunction::put_in_scope(&*scope, 
+        "list",
+        "add-end",
+        "Return a new list with expression added in front of the given list.",
+        vec![
+            Parameter::new_from_spec("list", "List where element is added.", "EL").unwrap(),
+            Parameter::new_from_spec("value", "Value to add.", "E").unwrap(),
+        ],
+        false,
+        Box::new(|_scope: &dyn Scope, p: &Vec<Value>|{
+            Ok(Value::List(FlList::add_at_end(&p[0].as_list()?, p[1].clone())))
+        }));
+
+        FlFunction::put_in_scope(&*scope, 
+        "list",
+        "append",
+        "Return the concatenation of two lists.",
+        vec![
+            Parameter::new_from_spec("first", "First list.", "EL").unwrap(),
+            Parameter::new_from_spec("second", "Second list", "EL").unwrap(),
+        ],
+        false,
+        Box::new(|_scope: &dyn Scope, p: &Vec<Value>|{
+            Ok(Value::List(FlList::append(&p[0].as_list()?, &p[1].as_list()?)))
+        }));
+
 /* TODO:
 
-pub fn add_at_start(&self, value: Value) -> FlList {
-pub fn add_at_end(&self, value: Value) -> FlList {
-pub fn append(&self, list: &FlList) -> FlList {
 pub fn first(&self) -> Result<Value, FlError> {
 pub fn last(&self) -> Result<Value, FlError> {
 pub fn get(&self, index: isize) -> Result<Value, FlError> {
@@ -22,8 +58,6 @@ pub fn upper_half(&self) -> FlList {
 
 pub fn remove_first(&self) -> Result<FlList, FlError> {
 pub fn remove_last(&self) -> Result<FlList, FlError> {
-
-pub fn len(&self) -> usize {
 
 */
         FlFunction::put_in_scope(&*scope, 
@@ -61,7 +95,7 @@ pub fn len(&self) -> usize {
             }))
         }));
 
-/*
+/* TODO:
 
 pub fn sub_list(&self, from_index: usize, to_index: usize) -> Result<FlList, FlError> {
 

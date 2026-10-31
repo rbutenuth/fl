@@ -3,3 +3,7 @@
 (size (quote (a b c)))
 
 (is-empty '())
+
+(add-front 1 '(2 3))
+
+(append '(1 2) '(3 4))
