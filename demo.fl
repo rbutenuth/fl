@@ -7,3 +7,5 @@
 (add-front 1 '(2 3))
 
 (append '(1 2) '(3 4))
+
+(remove-first '())

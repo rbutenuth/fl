@@ -336,8 +336,12 @@ impl FlList {
         result
     }
 
-    pub fn set(&self, position: usize, element: Value) -> Result<FlList, FlError> {
+    pub fn set(&self, position: isize, element: Value) -> Result<FlList, FlError> {
         self.check_not_empty("set on empty list")?;
+        if position < 0 {
+            return Err(FlError::new(format!("negative index: {}", position)));
+        }
+        let position = position as usize;
 
         // Locate bucket containing `position`.
         let mut bucket_idx = 0;

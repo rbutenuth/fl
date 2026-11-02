@@ -42,12 +42,59 @@ pub fn add_list_functions(scope: &dyn Scope) {
             Ok(Value::List(FlList::append(&p[0].as_list()?, &p[1].as_list()?)))
         }));
 
+        FlFunction::put_in_scope(&*scope, 
+        "list",
+        "first",
+        "First element, error on empty list.",
+        vec![
+            Parameter::new_from_spec("list", "Non empty list.", "EL").unwrap(),
+        ],
+        false,
+        Box::new(|_scope: &dyn Scope, p: &Vec<Value>|{
+            FlList::first(&p[0].as_list()?)
+        }));
+
+        FlFunction::put_in_scope(&*scope, 
+        "list",
+        "last",
+        "Last element, error on empty list.",
+        vec![
+            Parameter::new_from_spec("list", "Non empty list.", "EL").unwrap(),
+        ],
+        false,
+        Box::new(|_scope: &dyn Scope, p: &Vec<Value>|{
+            FlList::last(&p[0].as_list()?)
+        }));
+        
+        FlFunction::put_in_scope(&*scope, 
+        "list",
+        "get-element",
+        "Get one element from a non empty list.",
+        vec![
+            Parameter::new_from_spec("list", "Non empty list.", "EL").unwrap(),
+            Parameter::new_from_spec("index", "Index (starting at 0) of element to get.", "EI").unwrap(),
+        ],
+        false,
+        Box::new(|_scope: &dyn Scope, p: &Vec<Value>|{
+            FlList::get(&p[0].as_list()?, p[1].as_integer()? as isize)
+        }));
+        
+        FlFunction::put_in_scope(&*scope, 
+        "list",
+        "set-element",
+        "Set (replace) one element of a list.",
+        vec![
+            Parameter::new_from_spec("list", "Non empty list.", "EL").unwrap(),
+            Parameter::new_from_spec("index", "Index (starting at 0) of element to set.", "EI").unwrap(),
+            Parameter::new_from_spec("element", "New value.", "E").unwrap(),
+        ],
+        false,
+        Box::new(|_scope: &dyn Scope, p: &Vec<Value>|{
+            Ok(Value::List(FlList::set(&p[0].as_list()?, p[1].as_integer()? as isize, p[2].clone())?))
+        }));
+        
 /* TODO:
 
-pub fn first(&self) -> Result<Value, FlError> {
-pub fn last(&self) -> Result<Value, FlError> {
-pub fn get(&self, index: isize) -> Result<Value, FlError> {
-pub fn set(&self, position: usize, element: Value) -> Result<FlList, FlError> {
 pub fn replace_elements(
 
 is-list
@@ -56,10 +103,32 @@ list
 pub fn lower_half(&self) -> FlList {
 pub fn upper_half(&self) -> FlList {
 
-pub fn remove_first(&self) -> Result<FlList, FlError> {
-pub fn remove_last(&self) -> Result<FlList, FlError> {
 
 */
+        FlFunction::put_in_scope(&*scope, 
+        "list",
+        "remove-last",
+        "Remove last element of a list.",
+        vec![
+            Parameter::new_from_spec("list", "Non empty list.", "EL").unwrap(),
+        ],
+        false,
+        Box::new(|_scope: &dyn Scope, p: &Vec<Value>|{
+            Ok(Value::List(FlList::remove_last(&p[0].as_list()?)?))
+        }));
+
+        FlFunction::put_in_scope(&*scope, 
+        "list",
+        "remove-first",
+        "Remove first element of a list.",
+        vec![
+            Parameter::new_from_spec("list", "Non empty list.", "EL").unwrap(),
+        ],
+        false,
+        Box::new(|_scope: &dyn Scope, p: &Vec<Value>|{
+            Ok(Value::List(FlList::remove_first(&p[0].as_list()?)?))
+        }));
+
         FlFunction::put_in_scope(&*scope, 
         "list",
         "size",
