@@ -8,4 +8,16 @@
 
 (append '(1 2) '(3 4))
 
-(remove-first '())
+(remove-first '(1 2 3))
+
+(replace-elements '(1 2 3 4) 1 '(7 8 9) 2)
+
+(is-list '(1 2 3))
+
+(lower-half '(1 2 3 4 5 6 7 8 9))
+
+(upper-half '(1 2 3 4 5 6 7 8 9))
+
+(list 1 2 3 4 5 6 7 8 9)
+
+(sub-list '(1 2 3 4 5 6 7 8 9) 1 3)

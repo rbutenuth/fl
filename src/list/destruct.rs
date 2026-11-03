@@ -191,7 +191,15 @@ impl FlList {
         }
     }
 
-    pub fn sub_list(&self, from_index: usize, to_index: usize) -> Result<FlList, FlError> {
+    pub fn sub_list(&self, from_index: isize, to_index: isize) -> Result<FlList, FlError> {
+        if from_index < 0 {
+            return Err(FlError::new("from_index < 0"));
+        }
+        let from_index = from_index as usize;
+        if to_index < 0 {
+            return Err(FlError::new("to_index < 0"));
+        }
+        let to_index = to_index as usize;
         if from_index > to_index {
             return Err(FlError::new("from_index > to_index"));
         }
@@ -448,11 +456,18 @@ impl FlList {
     /// Replace `num_replaced` elements of `self` starting at `from` with the elements of `patch`.
     pub fn replace_elements(
         &self,
-        from: usize,
+        from: isize,
         patch: &FlList,
-        num_replaced: usize,
+        num_replaced: isize,
     ) -> Result<FlList, FlError> {
-        let old_size = self.len();
+        if from < 0 {
+            return Err(FlError::new("from < 0"));
+        }
+        if num_replaced < 0 {
+            return Err(FlError::new("num_replaced < 0"));
+        }
+
+        let old_size = self.len() as isize;
         if from + num_replaced > old_size {
             return Err(FlError::new("from + num_replaced > size"));
         }

@@ -93,18 +93,86 @@ pub fn add_list_functions(scope: &dyn Scope) {
             Ok(Value::List(FlList::set(&p[0].as_list()?, p[1].as_integer()? as isize, p[2].clone())?))
         }));
         
-/* TODO:
+        FlFunction::put_in_scope(&*scope, 
+        "list",
+        "replace-elements",
+        "Replace some elements from this list with elements of another list. \
+              It is not required for the second list to have the same number of elements \
+              as elements are removed from the original list. from is the index of the \
+              first replaced element, new-elements is the list with the new elements, \
+              num-replaced elements will be removed.",
+        vec![
+            Parameter::new_from_spec("list", "list.", "EL").unwrap(),
+            Parameter::new_from_spec("from", "Index of first replaced element (starting at 0)", "EI").unwrap(),
+            Parameter::new_from_spec("new-elements", "A list with new elements.", "EL").unwrap(),
+            Parameter::new_from_spec("num-replaced", "Number of elements to remove which will be removed.", "EI").unwrap(),
+        ],
+        false,
+        Box::new(|_scope: &dyn Scope, p: &Vec<Value>|{
+            Ok(Value::List(FlList::replace_elements(
+                &p[0].as_list()?, 
+                p[1].as_integer()? as isize, 
+                &p[2].as_list().clone()?,
+                p[3].as_integer()? as isize
+            )?))
+        }));
 
-pub fn replace_elements(
+        FlFunction::put_in_scope(&*scope, 
+        "list",
+        "is-list",
+        "Returns 1 when this is a list, 0 otherwise.",
+        vec![
+            Parameter::new_from_spec("value", "Value to test.", "E").unwrap(),
+        ],
+        false,
+        Box::new(|_scope: &dyn Scope, p: &Vec<Value>|{
+            Ok(Value::Integer(match p[0] {
+                Value::List(_) => 1,
+                _ => 0,
+            }))
+        }));
 
-is-list
-list
+        FlFunction::put_in_scope(&*scope, 
+        "list",
+        "list",
+        "Create a list from the parameters.",
+        vec![
+            Parameter::new_from_spec("values", "The values to create a list from.", "E").unwrap(),
+        ],
+        true,
+        Box::new(|_scope: &dyn Scope, p: &Vec<Value>|{
+            Ok(Value::List(FlList::from_vec_values(p.clone())))
+        }));
 
-pub fn lower_half(&self) -> FlList {
-pub fn upper_half(&self) -> FlList {
+        FlFunction::put_in_scope(&*scope, 
+        "list",
+        "lower-half",
+        "Return the lower half of a list (opposite to upper-half). \
+                 In case the number of elements is not even, the lower half \
+                 has one element less than the upper half.",
+        vec![
+            Parameter::new_from_spec("list", "The list to split", "EL").unwrap(),
+        ],
+        false,
+        Box::new(|_scope: &dyn Scope, p: &Vec<Value>|{
+            Ok(Value::List(FlList::lower_half(&p[0].as_list()?)))
+        }));
+
+        FlFunction::put_in_scope(&*scope, 
+        "list",
+        "upper-half",
+        "Return the upper half of a list (opposite to lower-half). \
+                 In case the number of elements is not even, the lower half \
+                 has one element less than the upper half.",
+        vec![
+            Parameter::new_from_spec("list", "The list to split", "EL").unwrap(),
+        ],
+        false,
+        Box::new(|_scope: &dyn Scope, p: &Vec<Value>|{
+            Ok(Value::List(FlList::upper_half(&p[0].as_list()?)))
+        }));
 
 
-*/
         FlFunction::put_in_scope(&*scope, 
         "list",
         "remove-last",
@@ -164,9 +232,24 @@ pub fn upper_half(&self) -> FlList {
             }))
         }));
 
-/* TODO:
+        FlFunction::put_in_scope(&*scope, 
+        "list",
+        "sub-list",
+        "Return a part from the given list, including start, excluding end (counted from 0).",
+        vec![
+            Parameter::new_from_spec("list", "list.", "EL").unwrap(),
+            Parameter::new_from_spec("start", "Start index of elements taken (starting at 0)", "EI").unwrap(),
+            Parameter::new_from_spec("end", "Index of first element not in the result list.", "EI").unwrap(),
+        ],
+        false,
+        Box::new(|_scope: &dyn Scope, p: &Vec<Value>|{
+            Ok(Value::List(FlList::sub_list(
+                &p[0].as_list()?, 
+                p[1].as_integer()? as isize, 
+                p[2].as_integer()? as isize)?))
+        }));
 
-pub fn sub_list(&self, from_index: usize, to_index: usize) -> Result<FlList, FlError> {
+/* TODO:
 
 sort (with comparator)
 
