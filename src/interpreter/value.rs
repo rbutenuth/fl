@@ -216,7 +216,6 @@ impl Value {
     }
 
     pub fn evaluate(&self, scope: &Arc<dyn Scope>) -> Result<Value, FlError> {
-        println!("evaluating {:?}", self);
         match self {
             Value::List(list) => Self::evaluate_list(scope, list),
             Value::Symbol(s) => Ok(scope.get(&s.name)),
@@ -244,6 +243,34 @@ impl Value {
                 other.as_value_type()
             ))),
         }
+    }
+
+    fn fmt_list(f: &mut fmt::Formatter<'_>, list: &FlList) -> fmt::Result {
+        write!(f, "(")?;
+        for (i, element) in list.into_iter().enumerate() {
+            if i > 0 {
+                write!(f, " ")?;
+            }
+            write!(f, "{}", element)?;
+        }
+        write!(f, ")")    }
+
+}
+
+impl fmt::Display for Value {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        match self {
+            Value::Nil => write!(f, "nil")?,
+            Value::Integer(i) => write!(f, "{}", i)?,
+            Value::Float(d) => write!(f, "{}", d)?,
+            Value::List(list) => Value::fmt_list(f, list)?,
+            Value::Symbol(symbol) => write!(f, "{}", symbol.name)?,
+            Value::Text(text) => write!(f, "\"{}\"", text)?,
+            Value::Map() => todo!(),
+            Value::Object() => todo!(),
+            Value::Function(_function) => todo!(),
+        }
+        Ok(())
     }
 }
 

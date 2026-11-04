@@ -24,7 +24,7 @@ fn main() {
         for value_or_err in Parser::parser_from_str(&source) {
             match value_or_err {
                 Ok(value) => match engine.evaluate(value) {
-                    Ok(result) => println!("{:?}", result),
+                    Ok(result) => println!("{}", result),
                     Err(e) => { println!("{}", e); break }
                 },
                 Err(e) => { println!("{}", e); break }

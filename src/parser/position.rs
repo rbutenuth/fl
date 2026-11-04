@@ -1,23 +1,23 @@
-use std::{fmt::{Display, Formatter, Result}, rc::Rc};
+use std::{fmt::{Display, Formatter, Result}, sync::Arc};
 
 #[derive(Clone, PartialEq, Debug)]
 pub struct Position {
-    pub name: Rc<String>,
+    pub name: Arc<String>,
     pub line: u32,
     pub column: u32,
 }
 
 impl Position {
-    pub fn new(name: Rc<String>, line: u32, column: u32) -> Self {
+    pub fn new(name: Arc<String>, line: u32, column: u32) -> Self {
         Position { name: name, line, column }
     }
 
     pub fn anonymous_start() -> Self {
-        Position { name: Rc::new(String::from("<anonymous>")), line: 1, column: 1 }
+        Position { name: Arc::new(String::from("<anonymous>")), line: 1, column: 1 }
     }
 
     pub fn anonymous(line: u32, column: u32) -> Self {
-        Position { name: Rc::new(String::from("<anonymous>")), line, column }
+        Position { name: Arc::new(String::from("<anonymous>")), line, column }
     }
 
 }

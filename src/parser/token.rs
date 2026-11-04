@@ -150,7 +150,7 @@ mod tests {
 
     #[test]
     fn test_token_with_position() {
-        let file = Rc::new(String::from("file.fpl"));
+        let file = Arc::new(String::from("file.fpl"));
         let pos = Position::new(file.clone(), 1, 10);
         let t = Token::new_with_pos(Type::TInteger { value: 42 }, pos);
         assert_eq!(Type::TInteger { value: 42 }, t.t_type);

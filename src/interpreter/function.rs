@@ -165,6 +165,9 @@ impl FlFunction {
         parameters: Vec<Parameter>,
         is_vararg: bool,
         callable: Box<dyn Callable>,
+
+        // TODO: Optional sample_doc mit einem Beispiel (example) und dem erwarteten Ergebnis (yields)
+
     ) {
         let name = name.into();
         let f = Self::new(package, name.clone(), comment, parameters, is_vararg, callable);

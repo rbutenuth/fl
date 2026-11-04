@@ -141,7 +141,7 @@ pub fn add_list_functions(scope: &dyn Scope) {
         ],
         true,
         Box::new(|_scope: &dyn Scope, p: &Vec<Value>|{
-            Ok(Value::List(FlList::from_vec_values(p.clone())))
+            Ok(Value::List(FlList::from_iterator_values(p.iter().cloned())))
         }));
 
         FlFunction::put_in_scope(&*scope, 
@@ -255,3 +255,25 @@ sort (with comparator)
 
  */
 }
+
+/*
+
+#[cfg(test)]
+mod tests {
+    use std::sync::LazyLock;
+    use super::*;
+
+    static SHARED: LazyLock<ExpensiveThing> = LazyLock::new(|| ExpensiveThing::new());
+
+    #[test]
+    fn test_a() {
+        let x = &*SHARED;   // first test to get here builds it, the others reuse it
+        // ...
+    }
+
+    #[test]
+    fn test_b() {
+        assert!(SHARED.something());
+    }
+}
+*/
