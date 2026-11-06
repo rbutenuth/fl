@@ -1,14 +1,14 @@
 #!/home/butenuth/rust/fl/target/debug/fl
 
-(size (quote (a b c)))
+;(size (quote (a b c)))
 
-(is-empty '())
+;(is-empty '())
 
-(add-front 1 '(2 3))
+;(add-front 1 '(2 3))
 
-(append '(1 2) '(3 4))
+;(append '(1 2) '(3 4))
 
-(remove-first '(1 2 3))
+;(remove-first '(1 2 3))
 
 (replace-elements '(1 2 3 4) 1 '(7 8 9) 2)
 

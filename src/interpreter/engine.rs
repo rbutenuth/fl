@@ -1,6 +1,7 @@
 use std::sync::Arc;
 
 use crate::interpreter::scope::MapScope;
+use crate::interpreter::function::Sample;
 use crate::interpreter::{FlFunction, Parameter, Scope};
 use crate::list::scope_filler;
 use crate::parser::Parser;
@@ -27,7 +28,7 @@ impl Engine {
                     x => Ok(x.clone()),
                 }
             }),
-            Vec::new()
+            vec![Sample::new("(quote (1 2 3))", "(1 2 3)")]
         );
 
         scope_filler::add_list_functions(global.as_ref());
@@ -55,7 +56,8 @@ impl Engine {
 mod tests {
     use std::assert_eq;
 
-use crate::interpreter::Engine;
+    use crate::Value;
+    use crate::interpreter::Engine;
 
     #[test]
     fn evaluate_string_with_two_expressions() {
@@ -64,5 +66,49 @@ use crate::interpreter::Engine;
         assert_eq!(2, results.len());
         assert_eq!("(1 2 3)", results[0].as_ref().unwrap().to_string());
         assert_eq!("4", results[1].as_ref().unwrap().to_string());
+    }
+
+    /// Get all entries from the global scope. For all entries containing a functions,
+    /// iterate over the samples. Evaluate the expression, check it returns one result
+    /// which is not Err, convert the value to string and compare it with yields in
+    /// the sample entry.
+    #[test]
+    fn run_and_check_samples_from_all_functions() {
+        let engine = Engine::new();
+        let mut failures = Vec::new();
+        let mut sample_count = 0;
+
+        for entry in engine.scope.entries() {
+            let Value::Function(function) = &entry.value else {
+                continue;
+            };
+            let name = format!("{}::{}", function.get_package(), function.get_name());
+            for sample in function.get_samples() {
+                sample_count += 1;
+                let mut results = engine.evaluate_string(sample.expression.as_str());
+                if results.len() != 1 {
+                    failures.push(format!(
+                        "{}: \"{}\" returned {} results instead of one",
+                        name, sample.expression, results.len()
+                    ));
+                    continue;
+                }
+                match results.remove(0) {
+                    Ok(value) if value.to_string() == sample.yields => {}
+                    Ok(value) => failures.push(format!(
+                        "{}: \"{}\" yields \"{}\", expected \"{}\"",
+                        name, sample.expression, value, sample.yields
+                    )),
+                    Err(e) => failures.push(format!(
+                        "{}: \"{}\" failed: {:?}",
+                        name, sample.expression, e
+                    )),
+                }
+            }
+        }
+
+        assert!(sample_count > 0, "no samples found in any function");
+        assert!(failures.is_empty(), "{} of {} samples failed:\n{}",
+            failures.len(), sample_count, failures.join("\n"));
     }
 }

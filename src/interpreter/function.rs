@@ -107,9 +107,20 @@ impl Parameter {
     }
 }
 
+/// An example call of a function: `expression` is evaluated and its result,
+/// converted to a string, must be equal to `yields`.
 pub struct Sample {
-    expression: String,
-    yields: String,
+    pub expression: String,
+    pub yields: String,
+}
+
+impl Sample {
+    pub fn new(expression: impl Into<String>, yields: impl Into<String>) -> Self {
+        Sample {
+            expression: expression.into(),
+            yields: yields.into(),
+        }
+    }
 }
 
 pub struct FlFunction {
@@ -163,6 +174,18 @@ impl FlFunction {
             callable,
             samples,
         }
+    }
+
+    pub fn get_package(&self) -> &str {
+        &self.package
+    }
+
+    pub fn get_name(&self) -> &str {
+        &self.name
+    }
+
+    pub fn get_samples(&self) -> &[Sample] {
+        &self.samples
     }
 
     pub fn put_in_scope(
