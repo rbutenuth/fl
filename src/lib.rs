@@ -61,8 +61,8 @@ impl FlError {
     }
 
     /// Sets the source position (builder style). `None` leaves the error without position.
-    pub fn with_position(mut self, position: Option<Position>) -> FlError {
-        self.position = position.map(Arc::new);
+    pub fn with_position(mut self, position: Position) -> FlError {
+        self.position = Some(Arc::new(position));
         self
     }
 
@@ -92,7 +92,7 @@ mod tests {
         let err = FlError::new("boom");
         assert!(err.position().is_none());
 
-        let err = err.with_position(Some(Position::anonymous(3, 7)));
+        let err = err.with_position(Position::anonymous(3, 7));
         assert_eq!(Some(&Position::anonymous(3, 7)), err.position());
         assert_eq!(Some(&Position::anonymous(3, 7)), err.clone().position());
         // Position does not take part in equality.
@@ -103,7 +103,7 @@ mod tests {
     fn display_includes_position_as_prefix() {
         let err = FlError::new("boom");
         assert_eq!("boom", err.to_string());
-        let err = err.with_position(Some(Position::anonymous(3, 7)));
+        let err = err.with_position(Position::anonymous(3, 7));
         assert_eq!("<anonymous>:3:7: boom", err.to_string());
     }
 

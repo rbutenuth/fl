@@ -38,10 +38,10 @@ impl Parser {
         let position = token.position;
         match token.t_type {
             TLeftParen => self.list(position),
-            TQuote => self.quote(),
+            TQuote => self.quote(position),
             TInteger { value } => Ok(self.integer(value)),
             TFloat { value } => Ok(self.float(value)),
-            TSymbol { value, comment } => Ok(self.symbol(value, comment)),
+            TSymbol { value, comment } => Ok(self.symbol(value, comment, Some(position))),
             TText { value } => Ok(self.text(value)),
             NonScanable { message } => Err(FlError::new(&*message).with_position(position)),
             _ => Err(FlError::new("unexpected )").with_position(position)),
@@ -62,9 +62,14 @@ impl Parser {
         Value::Float(f)
     }
 
-    fn symbol(&mut self, symbol: Arc<str>, comment: Option<Arc<str>>) -> Value {
+    fn symbol(
+        &mut self,
+        symbol: Arc<str>,
+        comment: Option<Arc<str>>,
+        position: Option<Position>,
+    ) -> Value {
         self.fetch_next_token();
-        Value::Symbol(Symbol::new(symbol, comment))
+        Value::Symbol(Symbol::new(&symbol, comment.as_deref(), position))
     }
 
     fn text(&mut self, text: Arc<str>) -> Value {
@@ -72,7 +77,7 @@ impl Parser {
         Value::Text(Arc::from(text))
     }
 
-    fn list(&mut self, start: Option<Position>) -> Result<Value, FlError> {
+    fn list(&mut self, start: Position) -> Result<Value, FlError> {
         self.fetch_next_token(); // skip (
 
         let mut elements: Vec<Value> = Vec::new();
@@ -95,9 +100,9 @@ impl Parser {
         Ok(Value::List(FlList::from_vec_values(elements)))
     }
 
-    fn quote(&mut self) -> Result<Value, FlError> {
+    fn quote(&mut self, position: Position) -> Result<Value, FlError> {
         self.fetch_next_token(); // skip '
-        let symbol = Value::Symbol(Symbol::new(Arc::from("quote"), None));
+        let symbol = Value::Symbol(Symbol::new("quote", None, Some(position)));
         let token = self.next_token.take().unwrap();
         let value = self.value(token)?;
         Ok(Value::List(FlList::from_pair(symbol, value)))
@@ -146,11 +151,11 @@ mod tests {
         let mut p = Parser::parser_from_str("; bla fasel\nfoo");
         let symbol = p.next().unwrap().unwrap();
         // Comment is not considered for equality of symbols
-        assert_eq!(Value::Symbol(Symbol::new(Arc::from("foo"), None)), symbol);
+        assert_eq!(Value::Symbol(Symbol::new("foo", None, None)), symbol);
         match symbol {
             Value::Symbol(s) => {
-                assert_eq!(*"foo", *s.name);
-                assert_eq!(*"bla fasel", *s.comment.unwrap());
+                assert_eq!("foo", s.name());
+                assert_eq!(Some("bla fasel"), s.comment());
             }
             _ => panic!("symbol expected"),
         }

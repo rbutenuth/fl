@@ -218,7 +218,7 @@ impl Value {
     pub fn evaluate(&self, scope: &Arc<dyn Scope>) -> Result<Value, FlError> {
         match self {
             Value::List(list) => Self::evaluate_list(scope, list),
-            Value::Symbol(s) => Ok(scope.get(&s.name)),
+            Value::Symbol(s) => Ok(scope.get(s.name())),
             Value::Map() => todo!(),
             Value::Object() => todo!(),
             // Nil, Integer, Float, Text, Function: just clone
@@ -236,12 +236,35 @@ impl Value {
         let first = elements
             .next()
             .ok_or_else(|| FlError::new("Can't evaluate an empty list"))?;
+
+        let position = match first.clone() {
+            Value::Symbol(s) => s.position().cloned(),
+            _ =>  None,
+        };
+        
         match first.evaluate(scope)? {
-            Value::Function(function) => function.evaluate_and_call(scope, elements.collect()),
-            other => Err(FlError::new(format!(
-                "First element of a list must evaluate to a Function, but got {:?}",
-                other.as_value_type()
-            ))),
+            Value::Function(function) => function
+                .evaluate_arguments_and_call(scope, elements.collect())
+                .map_err(|error| match position {
+                    Some(position) if error.position().is_none() => error.with_position(position),
+                    // The error already has a position (from a deeper call): add this call
+                    // as a new error and keep the inner one as source.
+                    Some(position) => {
+                        FlError::with_source(format!("error in call of '{}'", first), error)
+                            .with_position(position)
+                    }
+                    None => error,
+                }),
+            other => {
+                let error = FlError::new(format!(
+                    "First element of a list must evaluate to a Function, but got {:?}",
+                    other.as_value_type()
+                ));
+                Err(match position {
+                    Some(position) => error.with_position(position),
+                    None => error,
+                })
+            }
         }
     }
 
@@ -264,7 +287,7 @@ impl fmt::Display for Value {
             Value::Integer(i) => write!(f, "{}", i)?,
             Value::Float(d) => write!(f, "{}", d)?,
             Value::List(list) => Value::fmt_list(f, list)?,
-            Value::Symbol(symbol) => write!(f, "{}", symbol.name)?,
+            Value::Symbol(symbol) => write!(f, "{}", symbol.name())?,
             Value::Text(text) => write!(f, "\"{}\"", text)?,
             Value::Map() => todo!(),
             Value::Object() => todo!(),
@@ -281,7 +304,7 @@ mod tests {
     use crate::interpreter::scope::MapScope;
 
     fn symbol(name: &str) -> Value {
-        Value::Symbol(Symbol::new(Arc::from(name), None))
+        Value::Symbol(Symbol::new(name, None, None))
     }
 
     #[test]
@@ -361,7 +384,7 @@ mod tests {
     fn evaluate_symbol_ignores_comment() {
         let scope: Arc<dyn Scope> = Arc::new(MapScope::new("global", None));
         scope.put("a", Value::Text(Arc::from("hello")));
-        let commented = Value::Symbol(Symbol::new(Arc::from("a"), Some(Arc::from("a comment"))));
+        let commented = Value::Symbol(Symbol::new("a", Some("a comment"), None));
 
         assert_eq!(
             Ok(Value::Text(Arc::from("hello"))),

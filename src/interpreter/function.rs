@@ -207,7 +207,7 @@ impl FlFunction {
     /// Arguments of non-eager parameters are passed as they are. Arguments beyond
     /// the declared parameters (vararg) are evaluated when the last parameter 
     /// is eager.
-    pub fn evaluate_and_call(
+    pub fn evaluate_arguments_and_call(
         &self,
         scope: &Arc<dyn Scope>,
         arguments: Vec<Value>,
@@ -355,7 +355,7 @@ mod tests {
         assert_eq!(Ok(7), evaluate_to_integer(&scope, Value::Integer(7)));
         assert_eq!(
             Ok(5),
-            evaluate_to_integer(&scope, Value::Symbol(Symbol::new(Arc::from("a"), None)))
+            evaluate_to_integer(&scope, Value::Symbol(Symbol::new("a", None, None)))
         );
     }
 

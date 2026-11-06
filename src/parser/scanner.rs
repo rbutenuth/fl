@@ -389,14 +389,14 @@ mod tests {
         let mut sc = Scanner::from_str("#!/bin/fpl\ntest");
         let next = sc.next().unwrap();
         assert_eq!(String::from("test"), next.to_string());
-        assert_eq!(Position::anonymous(2, 1), next.position.unwrap());
+        assert_eq!(Position::anonymous(2, 1), next.position);
     }
 
     #[test]
     fn test_left_paren_with_position_check() {
         let mut sc = Scanner::from_str("(");
         let next = sc.next().unwrap();
-        assert_eq!(Position::anonymous_start(), next.position.unwrap());
+        assert_eq!(Position::anonymous_start(), next.position);
     }
 
     #[test]
@@ -444,7 +444,7 @@ mod tests {
         // two digits are not enough
         let mut sc = Scanner::from_str("\"\\u12\"");
         let next = sc.next().unwrap();
-        assert_eq!(Position::anonymous(1, 7), next.position.unwrap());
+        assert_eq!(Position::anonymous(1, 7), next.position);
         assert_eq!(Type::NonScanable { message: Arc::from("Illegal character '\"' in unicode hex sequence") }, next.t_type);
         // Just a different way to check for error:
         if let Type::NonScanable {message} = next.t_type {
@@ -460,7 +460,7 @@ mod tests {
         // U+10FFFF. Any 32-bit value higher than this is invalid.
         let mut sc = Scanner::from_str("\"\\v00110000\"");
         let next = sc.next().unwrap();
-        assert_eq!(Position::anonymous(1, 13), next.position.unwrap());
+        assert_eq!(Position::anonymous(1, 13), next.position);
         assert_eq!(Type::NonScanable { message: Arc::from("Illegal unicode value sequence".to_string()) }, next.t_type);
     }
 
@@ -468,7 +468,7 @@ mod tests {
     fn test_unterminated_string() {
         let mut sc = Scanner::from_str(" \"string without end");
         let next = sc.next().unwrap();
-        assert_eq!(Position::anonymous(1, 2), next.position.unwrap());
+        assert_eq!(Position::anonymous(1, 2), next.position);
         assert_eq!(Type::NonScanable { message: Arc::from("Unterminated string at end of input".to_string()) }, next.t_type);
     }
 
@@ -476,7 +476,7 @@ mod tests {
     fn test_comment_at_end_of_file() {
         let mut sc = Scanner::from_str("foo \n; bar");
         let next = sc.next().unwrap();
-        assert_eq!(Position::anonymous(1, 1), next.position.unwrap());
+        assert_eq!(Position::anonymous(1, 1), next.position);
         assert_eq!(Type::TSymbol { value: Arc::from("foo"), comment: Option::None }, next.t_type);
     }
 
@@ -484,7 +484,7 @@ mod tests {
     fn test_symbol_starts_with_minus() {
         let mut sc = Scanner::from_str("-foo");
         let next = sc.next().unwrap();
-        assert_eq!(Position::anonymous(1, 1), next.position.unwrap());
+        assert_eq!(Position::anonymous(1, 1), next.position);
         assert_eq!(Type::TSymbol { value: Arc::from("-foo"), comment: Option::None }, next.t_type);
     }
 
@@ -492,7 +492,7 @@ mod tests {
     fn test_integer() {
         let mut sc = Scanner::from_str("42");
         let next = sc.next().unwrap();
-        assert_eq!(Position::anonymous(1, 1), next.position.unwrap());
+        assert_eq!(Position::anonymous(1, 1), next.position);
         assert_eq!(Type::TInteger { value: 42 }, next.t_type);
     }
 

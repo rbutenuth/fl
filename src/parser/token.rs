@@ -44,28 +44,28 @@ impl Display for Type {
 
 pub struct Token {
     pub t_type: Type,
-    pub position: Option<Position>,
+    pub position: Position,
 }
 
 impl Token {
     pub fn new(t_type: Type) -> Self {
         Self {
             t_type: t_type,
-            position: None,
+            position: Position::anonymous_start(),
         }
     }
 
     pub fn new_with_pos(t_type: Type, position: Position) -> Self {
         Self {
             t_type: t_type,
-            position: Some(position),
+            position: position,
         }
     }
 
     pub fn new_error(message: &str, position: Position) -> Self {
         Self {
             t_type: Type::NonScanable { message: Arc::from(message) },
-            position: Some(position),
+            position: position,
         }
     }
 }
@@ -144,7 +144,6 @@ mod tests {
     fn test_token_without_position() {
         let t = Token::new(Type::TInteger { value: 42 });
         assert_eq!(Type::TInteger { value: 42 }, t.t_type);
-        assert!(t.position.is_none());
     }
 
     #[test]
@@ -153,8 +152,7 @@ mod tests {
         let pos = Position::new(file.clone(), 1, 10);
         let t = Token::new_with_pos(Type::TInteger { value: 42 }, pos);
         assert_eq!(Type::TInteger { value: 42 }, t.t_type);
-        assert!(t.position.is_some());
-        let pos2 = t.position.unwrap();
+        let pos2 = t.position;
         assert_eq!(pos2.line, 1);
         assert_eq!(pos2.column, 10);
         assert_eq!(pos2.name, file);
