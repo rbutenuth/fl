@@ -7,6 +7,7 @@ use crate::{
     },
 };
 use crate::interpreter::Symbol;
+use crate::parser::Position;
 
 pub struct Parser {
     scanner: Scanner,
@@ -34,15 +35,16 @@ impl Parser {
     }
 
     pub fn value(&mut self, token: Token) -> Result<Value, FlError> {
+        let position = token.position;
         match token.t_type {
-            TLeftParen => self.list(),
+            TLeftParen => self.list(position),
             TQuote => self.quote(),
             TInteger { value } => Ok(self.integer(value)),
             TFloat { value } => Ok(self.float(value)),
             TSymbol { value, comment } => Ok(self.symbol(value, comment)),
             TText { value } => Ok(self.text(value)),
-            NonScanable { message } => Err(FlError::new(&*message)), // TODO: Position
-            _ => Err(FlError::new("unexpected )")), // TODO: Position
+            NonScanable { message } => Err(FlError::new(&*message).with_position(position)),
+            _ => Err(FlError::new("unexpected )").with_position(position)),
         }
     }
 
@@ -70,14 +72,17 @@ impl Parser {
         Value::Text(Arc::from(text))
     }
 
-    fn list(&mut self) -> Result<Value, FlError> {
+    fn list(&mut self, start: Option<Position>) -> Result<Value, FlError> {
         self.fetch_next_token(); // skip (
 
         let mut elements: Vec<Value> = Vec::new();
 
         loop {
             match &self.next_token {
-                None => return Err(FlError::new("Unexpected end of source in list")), // TODO: position
+                None => {
+                    // Report the position of the unclosed (
+                    return Err(FlError::new("Unexpected end of source in list").with_position(start));
+                }
                 Some(token) if matches!(token.t_type, TRightParen) => break,
                 Some(_) => {
                     let token = self.next_token.take().unwrap();
@@ -160,6 +165,23 @@ mod tests {
             Err(FlError::new("unexpected )")),
             p.next().unwrap()
         );
+    }
+
+    #[test]
+    fn test_error_has_position() {
+        let mut p = Parser::parser_from_str("  )");
+        let err = p.next().unwrap().unwrap_err();
+        let pos = err.position().expect("position expected");
+        assert_eq!((1, 3), (pos.line, pos.column));
+    }
+
+    #[test]
+    fn test_unclosed_list_reports_position_of_open_paren() {
+        let mut p = Parser::parser_from_str("1\n  (2 3");
+        assert!(p.next().unwrap().is_ok());
+        let err = p.next().unwrap().unwrap_err();
+        let pos = err.position().expect("position expected");
+        assert_eq!((2, 3), (pos.line, pos.column));
     }
 
     #[test]

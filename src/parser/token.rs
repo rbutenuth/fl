@@ -158,6 +158,6 @@ mod tests {
         assert_eq!(pos2.line, 1);
         assert_eq!(pos2.column, 10);
         assert_eq!(pos2.name, file);
-        assert_eq!(pos2.to_string(), "name: file.fpl, line: 1, column: 10")
+        assert_eq!(pos2.to_string(), "file.fpl:1:10")
     }
 }

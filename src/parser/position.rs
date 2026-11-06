@@ -24,7 +24,7 @@ impl Position {
 
 impl Display for Position {
     fn fmt(&self, f: &mut Formatter<'_>) -> Result {
-        write!(f, "name: {}, line: {}, column: {}", self.name, self.line, self.column)
+        write!(f, "{}:{}:{}", self.name, self.line, self.column)
     }
 }
 
