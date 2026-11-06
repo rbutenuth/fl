@@ -107,6 +107,11 @@ impl Parameter {
     }
 }
 
+pub struct Sample {
+    expression: String,
+    yields: String,
+}
+
 pub struct FlFunction {
     package: String,
     name: String,
@@ -114,6 +119,7 @@ pub struct FlFunction {
     parameters: Vec<Parameter>,
     is_vararg: bool,
     callable: Box<dyn Callable>,
+    samples: Vec<Sample>,
 }
 
 impl fmt::Display for FlFunction {
@@ -146,6 +152,7 @@ impl FlFunction {
         parameters: Vec<Parameter>,
         is_vararg: bool,
         callable: Box<dyn Callable>,
+        samples: Vec<Sample>,
     ) -> Self {
         FlFunction {
             package: package.into(),
@@ -154,6 +161,7 @@ impl FlFunction {
             parameters,
             is_vararg,
             callable,
+            samples,
         }
     }
 
@@ -165,12 +173,10 @@ impl FlFunction {
         parameters: Vec<Parameter>,
         is_vararg: bool,
         callable: Box<dyn Callable>,
-
-        // TODO: Optional sample_doc mit einem Beispiel (example) und dem erwarteten Ergebnis (yields)
-
+        samples: Vec<Sample>,
     ) {
         let name = name.into();
-        let f = Self::new(package, name.clone(), comment, parameters, is_vararg, callable);
+        let f = Self::new(package, name.clone(), comment, parameters, is_vararg, callable, samples);
         scope.put(&name, Value::Function(Arc::new(f)));
     }
 
@@ -259,6 +265,7 @@ mod tests {
             vec![Parameter::new("a", "the value", ValueTypes::ALL, true)],
             is_vararg,
             Box::new(First),
+            Vec::new(),
         )
     }
 
@@ -306,6 +313,7 @@ mod tests {
                     other
                 ))),
             }),
+            Vec::new()
         );
 
         assert_eq!(Ok(Value::Integer(42)), multiply_by_2.call(&scope, vec![Value::Integer(21)]));
@@ -348,6 +356,7 @@ mod tests {
             Box::new(|_scope: &dyn Scope, _parameters: &Vec<Value>| -> Result<Value, FlError> {
                 Ok(Value::Nil)
             }),
+            Vec::new()
         );
 
         assert_eq!(Ok(Value::Nil), text_only.call(&scope, vec![Value::Text(Arc::from("x"))]));
@@ -368,6 +377,7 @@ mod tests {
             vec![Parameter::new("n", "a number", ValueTypes::NUMBER, true)],
             true,
             Box::new(|_scope: &dyn Scope, parameters: &Vec<Value>| Ok(parameters[0].clone())),
+            Vec::new()
         );
 
         let result = function.call(&scope, vec![Value::Integer(1), Value::Nil]);

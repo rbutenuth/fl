@@ -27,6 +27,7 @@ impl Engine {
                     x => Ok(x.clone()),
                 }
             }),
+            Vec::new()
         );
 
         scope_filler::add_list_functions(global.as_ref());
@@ -42,8 +43,8 @@ impl Engine {
         let mut results = Vec::new();
         for value_or_error in Parser::parser_from_str(&code.into()) {
             match value_or_error {
-                Err(e) => results.push(Err(e)),
                 Ok(v) => results.push(self.evaluate(v)),
+                e => results.push(e),
             }
         }
         results

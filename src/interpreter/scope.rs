@@ -2,6 +2,12 @@ use std::collections::HashMap;
 use std::sync::{Arc, RwLock};
 use crate::{FlError, Value};
 
+/// A key value mapping of a scope, as returned by [`Scope::entries`].
+#[derive(Debug, Clone, PartialEq)]
+pub struct ScopeEntry {
+    pub key: String,
+    pub value: Value,
+}
 
 pub trait Scope: Send + Sync {
 
@@ -33,6 +39,10 @@ pub trait Scope: Send + Sync {
     /// Returns an error when this scope already has a mapping for the key.
     /// Returns a copy of the value
     fn define(&self, key: &str, value: Value) -> Result<Value, FlError>;
+
+    /// Snapshot of the mappings in this scope only (the chain is not walked),
+    /// sorted by key.
+    fn entries(&self) -> Vec<ScopeEntry>;
 /*
 	@Override
 	public Iterator<Entry<String, FplValue>> iterator();
@@ -134,6 +144,14 @@ impl Scope for MapScope {
             map.insert(String::from(key), value.clone());
         }
         Ok(value)
+    }
+    
+    fn entries(&self) -> Vec<ScopeEntry> {
+        let entries: Vec<ScopeEntry> = self.map.read().expect("scope lock poisoned")
+            .iter()
+            .map(|(key, value)| ScopeEntry { key: key.clone(), value: value.clone() })
+            .collect();
+        entries
     }
 }
 
@@ -253,6 +271,20 @@ pub mod tests {
         // Defining twice in the same scope is not.
         assert!(local.define("a", int(3)).is_err());
         assert_eq!(int(2), local.get("a"));
+    }
+
+    #[test]
+    fn entries() {
+        let global = Arc::new(MapScope::new("global", None));
+        global.put("x", int(9));
+        let local = MapScope::new("local", Some(global.clone()));
+        assert!(local.entries().is_empty());
+
+        local.put("a", int(1));
+
+        let entries = local.entries();
+        assert_eq!(1, entries.len());
+        assert_eq!(ScopeEntry { key: String::from("a"), value: int(1) }, entries[0]);
     }
 
     #[test]

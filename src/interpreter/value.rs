@@ -326,7 +326,7 @@ mod tests {
         assert_eq!(ValueType::Object, Value::Object().as_value_type());
         let function = FlFunction::new("p", "f", "", vec![], false, Box::new(
             |_scope: &dyn Scope, _parameters: &Vec<Value>| Ok(Value::Nil),
-        ));
+        ), Vec::new());
         assert_eq!(ValueType::Function, Value::Function(Arc::new(function)).as_value_type());
     }
 
@@ -385,6 +385,7 @@ mod tests {
                 (Value::Integer(a), Value::Integer(b)) => Ok(Value::Integer(a + b)),
                 _ => Err(FlError::new("not integers")),
             }),
+            Vec::new()
         );
         // Not eager, returns its argument unevaluated.
         let quote = FlFunction::new(
@@ -394,7 +395,7 @@ mod tests {
             vec![Parameter::new("a", "", ValueTypes::ALL, false)],
             false,
             Box::new(|_scope: &dyn Scope, p: &Vec<Value>| Ok(p[0].clone())),
-        );
+            Vec::new());
         scope.put("add", Value::Function(Arc::new(add)));
         scope.put("quote", Value::Function(Arc::new(quote)));
         scope

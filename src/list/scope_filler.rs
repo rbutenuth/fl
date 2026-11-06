@@ -14,7 +14,8 @@ pub fn add_list_functions(scope: &dyn Scope) {
         false,
         Box::new(|_scope: &dyn Scope, p: &Vec<Value>|{
             Ok(Value::List(FlList::add_at_start(&p[1].as_list()?, p[0].clone())))
-        }));
+        }),
+        Vec::new());
 
         FlFunction::put_in_scope(&*scope, 
         "list",
@@ -27,7 +28,8 @@ pub fn add_list_functions(scope: &dyn Scope) {
         false,
         Box::new(|_scope: &dyn Scope, p: &Vec<Value>|{
             Ok(Value::List(FlList::add_at_end(&p[0].as_list()?, p[1].clone())))
-        }));
+        }),
+        Vec::new());
 
         FlFunction::put_in_scope(&*scope, 
         "list",
@@ -40,7 +42,8 @@ pub fn add_list_functions(scope: &dyn Scope) {
         false,
         Box::new(|_scope: &dyn Scope, p: &Vec<Value>|{
             Ok(Value::List(FlList::append(&p[0].as_list()?, &p[1].as_list()?)))
-        }));
+        }),
+        Vec::new());
 
         FlFunction::put_in_scope(&*scope, 
         "list",
@@ -52,7 +55,8 @@ pub fn add_list_functions(scope: &dyn Scope) {
         false,
         Box::new(|_scope: &dyn Scope, p: &Vec<Value>|{
             FlList::first(&p[0].as_list()?)
-        }));
+        }),
+        Vec::new());
 
         FlFunction::put_in_scope(&*scope, 
         "list",
@@ -64,7 +68,8 @@ pub fn add_list_functions(scope: &dyn Scope) {
         false,
         Box::new(|_scope: &dyn Scope, p: &Vec<Value>|{
             FlList::last(&p[0].as_list()?)
-        }));
+        }),
+        Vec::new());
         
         FlFunction::put_in_scope(&*scope, 
         "list",
@@ -77,7 +82,8 @@ pub fn add_list_functions(scope: &dyn Scope) {
         false,
         Box::new(|_scope: &dyn Scope, p: &Vec<Value>|{
             FlList::get(&p[0].as_list()?, p[1].as_integer()? as isize)
-        }));
+        }),
+        Vec::new());
         
         FlFunction::put_in_scope(&*scope, 
         "list",
@@ -91,7 +97,8 @@ pub fn add_list_functions(scope: &dyn Scope) {
         false,
         Box::new(|_scope: &dyn Scope, p: &Vec<Value>|{
             Ok(Value::List(FlList::set(&p[0].as_list()?, p[1].as_integer()? as isize, p[2].clone())?))
-        }));
+        }),
+        Vec::new());
         
         FlFunction::put_in_scope(&*scope, 
         "list",
@@ -115,7 +122,8 @@ pub fn add_list_functions(scope: &dyn Scope) {
                 &p[2].as_list().clone()?,
                 p[3].as_integer()? as isize
             )?))
-        }));
+        }),
+        Vec::new());
 
         FlFunction::put_in_scope(&*scope, 
         "list",
@@ -130,7 +138,8 @@ pub fn add_list_functions(scope: &dyn Scope) {
                 Value::List(_) => 1,
                 _ => 0,
             }))
-        }));
+        }),
+        Vec::new());
 
         FlFunction::put_in_scope(&*scope, 
         "list",
@@ -142,7 +151,8 @@ pub fn add_list_functions(scope: &dyn Scope) {
         true,
         Box::new(|_scope: &dyn Scope, p: &Vec<Value>|{
             Ok(Value::List(FlList::from_iterator_values(p.iter().cloned())))
-        }));
+        }),
+        Vec::new());
 
         FlFunction::put_in_scope(&*scope, 
         "list",
@@ -156,7 +166,8 @@ pub fn add_list_functions(scope: &dyn Scope) {
         false,
         Box::new(|_scope: &dyn Scope, p: &Vec<Value>|{
             Ok(Value::List(FlList::lower_half(&p[0].as_list()?)))
-        }));
+        }),
+        Vec::new());
 
         FlFunction::put_in_scope(&*scope, 
         "list",
@@ -170,7 +181,8 @@ pub fn add_list_functions(scope: &dyn Scope) {
         false,
         Box::new(|_scope: &dyn Scope, p: &Vec<Value>|{
             Ok(Value::List(FlList::upper_half(&p[0].as_list()?)))
-        }));
+        }),
+        Vec::new());
 
 
         FlFunction::put_in_scope(&*scope, 
@@ -183,7 +195,8 @@ pub fn add_list_functions(scope: &dyn Scope) {
         false,
         Box::new(|_scope: &dyn Scope, p: &Vec<Value>|{
             Ok(Value::List(FlList::remove_last(&p[0].as_list()?)?))
-        }));
+        }),
+        Vec::new());
 
         FlFunction::put_in_scope(&*scope, 
         "list",
@@ -195,7 +208,8 @@ pub fn add_list_functions(scope: &dyn Scope) {
         false,
         Box::new(|_scope: &dyn Scope, p: &Vec<Value>|{
             Ok(Value::List(FlList::remove_first(&p[0].as_list()?)?))
-        }));
+        }),
+        Vec::new());
 
         FlFunction::put_in_scope(&*scope, 
         "list",
@@ -207,7 +221,8 @@ pub fn add_list_functions(scope: &dyn Scope) {
         false,
         Box::new(|_scope: &dyn Scope, p: &Vec<Value>|{
             Ok(Value::Integer(FlList::len(&p[0].as_list()?) as i64))
-        }));
+        }),
+        Vec::new());
 
         FlFunction::put_in_scope(&*scope, 
         "list",
@@ -230,7 +245,8 @@ pub fn add_list_functions(scope: &dyn Scope) {
                 Value::Object() => todo!(),
                 Value::Function(_fl_function) => 0,
             }))
-        }));
+        }),
+        Vec::new());
 
         FlFunction::put_in_scope(&*scope, 
         "list",
@@ -247,7 +263,8 @@ pub fn add_list_functions(scope: &dyn Scope) {
                 &p[0].as_list()?, 
                 p[1].as_integer()? as isize, 
                 p[2].as_integer()? as isize)?))
-        }));
+        }),
+        Vec::new());
 
 /* TODO:
 
