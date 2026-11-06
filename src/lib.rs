@@ -66,6 +66,11 @@ impl FlError {
         self
     }
 
+    /// The error message, without position.
+    pub fn message(&self) -> &str {
+        &self.message
+    }
+
     /// The source position where the error happened, if known.
     pub fn position(&self) -> Option<&Position> {
         self.position.as_deref()

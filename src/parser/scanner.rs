@@ -2,10 +2,7 @@ use std::sync::Arc;
 
 use super::position::Position;
 use super::token::{Token, Type};
-
-struct ScanError {
-    message: Arc<str>
-}
+use crate::FlError;
 
 #[derive(Clone, PartialEq, Debug)]
 struct CharWithPosition {
@@ -201,7 +198,7 @@ impl Scanner {
                     Ok(ch) => text.push(ch),
                     Err(scan_error) => {
                         return Token::new_error(
-                            &scan_error.message,
+                            scan_error.message(),
                             self.position.clone(),
                         );
                     }
@@ -265,7 +262,7 @@ impl Scanner {
     }
 
     // Current position is on the \ character. Try to decode the character/sequence following.
-    fn decode_escape_sequence(&mut self) -> Result<char, ScanError> {
+    fn decode_escape_sequence(&mut self) -> Result<char, FlError> {
         let esc = self.current_char();
         self.move_one_char();
         match esc {
@@ -279,14 +276,12 @@ impl Scanner {
         }
     }
 
-    fn read_hex_sequence(&mut self, number_of_hex_digits: usize) -> Result<char, ScanError> {
+    fn read_hex_sequence(&mut self, number_of_hex_digits: usize) -> Result<char, FlError> {
        let mut result: u32 = 0;
         for _ in 1..=number_of_hex_digits {
             result <<= 4;
             if self.eof() {
-                return Err(ScanError {
-                    message: Arc::from("Unterminated string at end of input"),
-                });
+                return Err(FlError::new("Unterminated string at end of input"));
             }
             let ch = self.lookahead[0].value.to_ascii_lowercase();
             match self.parse_hex_digit(ch) {
@@ -297,21 +292,20 @@ impl Scanner {
         }
         match char::from_u32(result) {
             Some(ch) => Ok(ch),
-            None => Err(ScanError {
-                message: Arc::from("Illegal unicode value sequence"),
-            }),
+            None => Err(FlError::new("Illegal unicode value sequence")),
         }
     }
 
-    fn parse_hex_digit(&self, ch: char) -> Result<u32, ScanError> {
+    fn parse_hex_digit(&self, ch: char) -> Result<u32, FlError> {
         Ok((match ch {
             '0'..='9' => ch as u8 - '0' as u8,
             'a'..='f' => ch as u8 - 'a' as u8 + 10,
             'A'..='F' => ch as u8 - 'A' as u8 + 10,
             _ => {
-                return Err(ScanError {
-                    message: format!("Illegal character '{}' in unicode hex sequence", ch).into(),
-                });
+                return Err(FlError::new(format!(
+                    "Illegal character '{}' in unicode hex sequence",
+                    ch
+                ))); // TODO: Position
             }
         }) as u32)
     }
