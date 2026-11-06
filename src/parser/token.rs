@@ -78,7 +78,6 @@ impl Display for Token {
 
 #[cfg(test)]
 mod tests {
-    use std::rc::Rc;
     use super::*;
 
     #[test]
