@@ -191,15 +191,15 @@ impl FlList {
         }
     }
 
-    pub fn sub_list(&self, from_index: isize, to_index: isize) -> Result<FlList, FlError> {
-        if from_index < 0 {
+    pub fn sub_list(&self, start: isize, end: isize) -> Result<FlList, FlError> {
+        if start < 0 {
             return Err(FlError::new("from_index < 0"));
         }
-        let from_index = from_index as usize;
-        if to_index < 0 {
+        let from_index = start as usize;
+        if end < 0 {
             return Err(FlError::new("to_index < 0"));
         }
-        let to_index = to_index as usize;
+        let to_index = end as usize;
         if from_index > to_index {
             return Err(FlError::new("from_index > to_index"));
         }
@@ -228,7 +228,7 @@ impl FlList {
             index += self.buckets[bucket_to_idx].values.len();
             bucket_to_idx += 1;
             if bucket_to_idx >= self.buckets.len() {
-                return Err(FlError::new("to_index > size"));
+                return Err(FlError::new("end > size"));
             }
         }
         let in_bucket_to_idx = to_index - index;
@@ -358,7 +358,7 @@ impl FlList {
             count += self.buckets[bucket_idx].values.len();
             bucket_idx += 1;
             if bucket_idx >= self.buckets.len() {
-                return Err(FlError::new("position >= size"));
+                return Err(FlError::new("index >= size"));
             }
         }
         let in_bucket_idx = position - count;
@@ -457,26 +457,26 @@ impl FlList {
     pub fn replace_elements(
         &self,
         from: isize,
-        patch: &FlList,
+        new_elements: &FlList,
         num_replaced: isize,
     ) -> Result<FlList, FlError> {
         if from < 0 {
             return Err(FlError::new("from < 0"));
         }
         if num_replaced < 0 {
-            return Err(FlError::new("num_replaced < 0"));
+            return Err(FlError::new("num-replaced < 0"));
         }
 
         let old_size = self.len() as isize;
         if from + num_replaced > old_size {
-            return Err(FlError::new("from + num_replaced > size"));
+            return Err(FlError::new("from + num-replaced > size"));
         }
         if old_size == 0 {
-            return Ok(patch.clone());
+            return Ok(new_elements.clone());
         }
         let head = self.sub_list(0, from)?;
         let tail = self.sub_list(from + num_replaced, old_size)?;
-        Ok(head.append(patch).append(&tail))
+        Ok(head.append(new_elements).append(&tail))
     }
 
 }
