@@ -3,6 +3,7 @@ use std::{error::Error, fmt, sync::Arc};
 pub mod interpreter;
 pub mod list;
 pub mod parser;
+pub mod stdlib;
 
 pub use interpreter::value::{Value, ValueType, ValueTypes};
 pub use parser::Position;

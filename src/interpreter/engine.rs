@@ -4,7 +4,7 @@ use crate::interpreter::scope::MapScope;
 use crate::interpreter::function::Sample;
 use crate::interpreter::{FlFunction, Parameter, Scope};
 use crate::list::scope_filler;
-use crate::parser::Parser;
+use crate::{parser::Parser, stdlib::arithmetic};
 use crate::{FlError, Value};
 
 pub struct Engine {
@@ -32,6 +32,7 @@ impl Engine {
         );
 
         scope_filler::add_list_functions(global.as_ref());
+        arithmetic::add_arithmetic_functions(global.as_ref());
 
         Engine { scope: global }
     }
