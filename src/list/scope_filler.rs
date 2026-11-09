@@ -56,7 +56,9 @@ pub fn add_list_functions(scope: &dyn Scope) {
         Box::new(|_scope: &dyn Scope, p: &Vec<Value>|{
             FlList::first(&p[0].as_list()?)
         }),
-        vec![Sample::new("(first '(1 2 3))", "1")]);
+        vec![
+            Sample::new("(first '(1 2 3))", "1"),
+            Sample::new("(first '())", "Error: first on empty list"),]);
 
         FlFunction::put_in_scope(&*scope, 
         "list",
@@ -69,7 +71,9 @@ pub fn add_list_functions(scope: &dyn Scope) {
         Box::new(|_scope: &dyn Scope, p: &Vec<Value>|{
             FlList::last(&p[0].as_list()?)
         }),
-        vec![Sample::new("(last '(1 2 3))", "3")]);
+        vec![
+            Sample::new("(last '(1 2 3))", "3"),
+            Sample::new("(last '())", "Error: last on empty list"),]);
         
         FlFunction::put_in_scope(&*scope, 
         "list",

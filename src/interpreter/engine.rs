@@ -57,7 +57,7 @@ impl Engine {
 mod tests {
     use std::assert_eq;
 
-    use crate::Value;
+    use crate::{FlError, Value};
     use crate::interpreter::Engine;
 
     #[test]
@@ -70,9 +70,10 @@ mod tests {
     }
 
     /// Get all entries from the global scope. For all entries containing a functions,
-    /// iterate over the samples. Evaluate the expression, check it returns one result
-    /// which is not Err, convert the value to string and compare it with yields in
-    /// the sample entry.
+    /// iterate over the samples. Evaluate the expression, check it returns one result.
+    /// If yields starts with "Error: ", the result must be an FlError whose message
+    /// equals the text after the prefix. Otherwise the result must not be Err; convert
+    /// the value to string and compare it with yields in the sample entry.
     #[test]
     fn run_and_check_samples_from_all_functions() {
         let engine = Engine::new();
@@ -94,7 +95,23 @@ mod tests {
                     ));
                     continue;
                 }
-                match results.remove(0) {
+                let result = results.remove(0);
+                if let Some(expected_message) = sample.yields.strip_prefix("Error: ") {
+                    // FlError equality compares the messages only.
+                    match result {
+                        Err(e) if e == FlError::new(expected_message) => {}
+                        Err(e) => failures.push(format!(
+                            "{}: \"{}\" failed with \"{}\", expected error \"{}\"",
+                            name, sample.expression, e, expected_message
+                        )),
+                        Ok(value) => failures.push(format!(
+                            "{}: \"{}\" yields \"{}\", expected error \"{}\"",
+                            name, sample.expression, value, expected_message
+                        )),
+                    }
+                    continue;
+                }
+                match result {
                     Ok(value) if value.to_string() == sample.yields => {}
                     Ok(value) => failures.push(format!(
                         "{}: \"{}\" yields \"{}\", expected \"{}\"",
