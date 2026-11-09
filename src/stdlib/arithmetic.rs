@@ -186,5 +186,5 @@ pub fn add_arithmetic_functions(scope: &dyn Scope) {
         Box::new(|_scope: &dyn Scope, p: &Vec<Value>|{
             compute(Operator::Exp, p)
         }),
-        vec![Sample::new("(** 2 10)", "1024")]);
+        vec![Sample::new("(** 2 10)", "1024"), Sample::new("(** 0 0)", "Error: 0^0")]);
 }
