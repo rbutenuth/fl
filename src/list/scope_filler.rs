@@ -250,7 +250,17 @@ pub fn add_list_functions(scope: &dyn Scope) {
                 Value::Function(_fl_function) => 0,
             }))
         }),
-        vec![Sample::new("(is-empty '(1 2 3 4))", "0"), Sample::new("(is-empty '())", "1"), Sample::new("(is-empty \"\")", "1")]);
+        vec![
+            Sample::new("(is-empty '(1 2 3 4))", "0"), 
+            Sample::new("(is-empty '())", "1"), 
+            Sample::new("(is-empty \"\")", "1"),
+            Sample::new("(is-empty \"foo\")", "0"),
+            Sample::new("(is-empty 'some-symbol)", "0"),
+            Sample::new("(is-empty 0)", "1"),
+            Sample::new("(is-empty 42)", "0"),
+            Sample::new("(is-empty 0.0)", "1"),
+            Sample::new("(is-empty 3.1415)", "0"),
+            ]);
 
         FlFunction::put_in_scope(&*scope, 
         "list",
