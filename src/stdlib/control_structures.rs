@@ -204,7 +204,28 @@ pub fn add_control_structures_functions(scope: &dyn Scope) {
         ],
     );
 
-    // TODO: throw-with-id
+    FlFunction::put_in_scope(
+        &*scope,
+        "control_structures",
+        "throw-with-id",
+        "Throw an error with the given message and id.",
+        vec![
+            Parameter::new_from_spec("message", "Message of the error", "ET").unwrap(),
+            Parameter::new_from_spec("id", "Id of the error", "EI").unwrap(),
+        ],
+        false,
+        Box::new(|_scope: &Arc<dyn Scope>, p: &Vec<Value>| {
+            Err(FlError::new_with_id(&*p[0].as_text()?, p[1].as_integer()?))
+        }),
+        vec![
+            Sample::new("(throw-with-id \"oops\" 42)", "Error(42): oops"),
+            Sample::new(
+                "(throw-with-id \"oops\" \"x\")",
+                "Error: Parameter id expects Integer, but got Text",
+            ),
+        ],
+    );
+
     // TODO: try-catch
     // TODO: try-with
     

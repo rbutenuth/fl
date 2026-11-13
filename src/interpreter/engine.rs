@@ -68,6 +68,18 @@ impl Engine {
     }
 }
 
+/// Parses the `yields` of an error sample: `Error: message` (id 0)
+/// or `Error(id): message`.
+#[cfg(test)]
+fn expected_error(yields: &str) -> Option<(i64, &str)> {
+    if let Some(message) = yields.strip_prefix("Error: ") {
+        return Some((0, message));
+    }
+    let rest = yields.strip_prefix("Error(")?;
+    let (id, message) = rest.split_once("): ")?;
+    Some((id.parse().ok()?, message))
+}
+
 #[cfg(test)]
 mod tests {
     use std::assert_eq;
@@ -113,10 +125,10 @@ mod tests {
                     continue;
                 }
                 let result = results.remove(0);
-                if let Some(expected_message) = sample.yields.strip_prefix("Error: ") {
-                    // FlError equality compares the messages only.
+                if let Some((expected_id, expected_message)) = super::expected_error(&sample.yields) {
+                    // FlError equality compares message and id, not the position.
                     match result {
-                        Err(e) if e == FlError::new(expected_message) => {}
+                        Err(e) if e == FlError::new_with_id(expected_message, expected_id) => {}
                         Err(e) => failures.push(format!(
                             "{}: \"{}\" failed with \"{}\", expected error \"{}\"",
                             name, sample.expression, e, expected_message
