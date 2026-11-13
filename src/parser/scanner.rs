@@ -51,8 +51,8 @@ impl Scanner {
         Self::from_named_source(Position::anonymous_start(), chars)
     }
 
-    pub fn from_str(source: &str) -> Self {
-        let chars: Vec<char> = source.chars().collect();
+    pub fn from_string(content: impl Into<String>) -> Self {
+        let chars: Vec<char> = content.into().chars().collect();
         Scanner::from_anonymous_source(Box::new(chars.into_iter()))
     }
 
@@ -345,7 +345,7 @@ mod tests {
 
     fn scan_and_collect(source: &str) -> String {
         //let chars: Vec<char> = source.chars().collect();
-        Scanner::from_str(source)
+        Scanner::from_string(source)
             .map(|token| token.to_string())
             .collect::<Vec<String>>()
             .join(",")
@@ -353,14 +353,14 @@ mod tests {
 
     #[test]
     fn test_empty_source() {
-        let mut sc = Scanner::from_str("");
+        let mut sc = Scanner::from_string("");
         let next = sc.next();
         assert!(next.is_none());
     }
 
     #[test]
     fn test_position() {
-        let mut sc = Scanner::from_str("12\n45");
+        let mut sc = Scanner::from_string("12\n45");
         assert_eq!('1', sc.lookahead[0].value);
         assert_eq!(Position::anonymous(1, 1), sc.current_position());
         sc.move_one_char();
@@ -386,7 +386,7 @@ mod tests {
 
     #[test]
     fn test_first_line_with_shebang() {
-        let mut sc = Scanner::from_str("#!/bin/fpl\ntest");
+        let mut sc = Scanner::from_string("#!/bin/fpl\ntest");
         let next = sc.next().unwrap();
         assert_eq!(String::from("test"), next.to_string());
         assert_eq!(Position::anonymous(2, 1), next.position);
@@ -394,7 +394,7 @@ mod tests {
 
     #[test]
     fn test_left_paren_with_position_check() {
-        let mut sc = Scanner::from_str("(");
+        let mut sc = Scanner::from_string("(");
         let next = sc.next().unwrap();
         assert_eq!(Position::anonymous_start(), next.position);
     }
@@ -442,7 +442,7 @@ mod tests {
     #[test]
     fn test_incomplete_hex_sequence() {
         // two digits are not enough
-        let mut sc = Scanner::from_str("\"\\u12\"");
+        let mut sc = Scanner::from_string("\"\\u12\"");
         let next = sc.next().unwrap();
         assert_eq!(Position::anonymous(1, 7), next.position);
         assert_eq!(Type::NonScanable { message: Arc::from("Illegal character '\"' in unicode hex sequence") }, next.t_type);
@@ -458,7 +458,7 @@ mod tests {
     fn test_out_of_range_unicode_value() {
         // Out-of-Range Values (> U+10FFFF): The Unicode standard only defines code points up to
         // U+10FFFF. Any 32-bit value higher than this is invalid.
-        let mut sc = Scanner::from_str("\"\\v00110000\"");
+        let mut sc = Scanner::from_string("\"\\v00110000\"");
         let next = sc.next().unwrap();
         assert_eq!(Position::anonymous(1, 13), next.position);
         assert_eq!(Type::NonScanable { message: Arc::from("Illegal unicode value sequence".to_string()) }, next.t_type);
@@ -466,7 +466,7 @@ mod tests {
 
     #[test]
     fn test_unterminated_string() {
-        let mut sc = Scanner::from_str(" \"string without end");
+        let mut sc = Scanner::from_string(" \"string without end");
         let next = sc.next().unwrap();
         assert_eq!(Position::anonymous(1, 2), next.position);
         assert_eq!(Type::NonScanable { message: Arc::from("Unterminated string at end of input".to_string()) }, next.t_type);
@@ -474,7 +474,7 @@ mod tests {
 
     #[test]
     fn test_comment_at_end_of_file() {
-        let mut sc = Scanner::from_str("foo \n; bar");
+        let mut sc = Scanner::from_string("foo \n; bar");
         let next = sc.next().unwrap();
         assert_eq!(Position::anonymous(1, 1), next.position);
         assert_eq!(Type::TSymbol { value: Arc::from("foo"), comment: Option::None }, next.t_type);
@@ -482,7 +482,7 @@ mod tests {
 
     #[test]
     fn test_symbol_starts_with_minus() {
-        let mut sc = Scanner::from_str("-foo");
+        let mut sc = Scanner::from_string("-foo");
         let next = sc.next().unwrap();
         assert_eq!(Position::anonymous(1, 1), next.position);
         assert_eq!(Type::TSymbol { value: Arc::from("-foo"), comment: Option::None }, next.t_type);
@@ -490,7 +490,7 @@ mod tests {
 
     #[test]
     fn test_integer() {
-        let mut sc = Scanner::from_str("42");
+        let mut sc = Scanner::from_string("42");
         let next = sc.next().unwrap();
         assert_eq!(Position::anonymous(1, 1), next.position);
         assert_eq!(Type::TInteger { value: 42 }, next.t_type);

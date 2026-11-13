@@ -44,7 +44,7 @@ impl Engine {
 
     pub fn evaluate_string(&self, code: impl Into<String>) -> Vec<Result<Value, FlError>> {
         let mut results = Vec::new();
-        for value_or_error in Parser::parser_from_str(&code.into()) {
+        for value_or_error in Parser::parser_from_string(&code.into()) {
             match value_or_error {
                 Ok(v) => results.push(self.evaluate(v)),
                 e => results.push(e),

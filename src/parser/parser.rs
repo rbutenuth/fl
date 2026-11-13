@@ -48,8 +48,8 @@ impl Parser {
         }
     }
 
-    pub fn parser_from_str(str: &str) -> Parser {
-        Parser::from_scanner(Scanner::from_str(str))
+    pub fn parser_from_string(content: &str) -> Parser {
+        Parser::from_scanner(Scanner::from_string(content))
     }
 
     pub fn parser_from_string_with_source(name: impl Into<String>, content: impl Into<String>) -> Parser {
@@ -131,32 +131,32 @@ mod tests {
 
     #[test]
     fn test_empty_source() {
-        let mut p = Parser::parser_from_str("");
+        let mut p = Parser::parser_from_string("");
         let next = p.next();
         assert!(next.is_none());
     }
 
     #[test]
     fn test_integer_constant() {
-        let mut p = Parser::parser_from_str("42");
+        let mut p = Parser::parser_from_string("42");
         assert_eq!(Value::Integer(42), p.next().unwrap().unwrap());
     }
 
     #[test]
     fn test_float_constant() {
-        let mut p = Parser::parser_from_str("3.14");
+        let mut p = Parser::parser_from_string("3.14");
         assert_eq!(Value::Float(3.14), p.next().unwrap().unwrap());
     }
 
     #[test]
     fn test_text_constant() {
-        let mut p = Parser::parser_from_str("\"a text\"");
+        let mut p = Parser::parser_from_string("\"a text\"");
         assert_eq!(Value::Text(Arc::from("a text")), p.next().unwrap().unwrap());
     }
 
     #[test]
     fn test_symbol_with_comment() {
-        let mut p = Parser::parser_from_str("; bla fasel\nfoo");
+        let mut p = Parser::parser_from_string("; bla fasel\nfoo");
         let symbol = p.next().unwrap().unwrap();
         // Comment is not considered for equality of symbols
         assert_eq!(Value::Symbol(Symbol::new("foo", None, None)), symbol);
@@ -173,7 +173,7 @@ mod tests {
 
     #[test]
     fn test_unexpected_right_paren() {
-        let mut p = Parser::parser_from_str(")");
+        let mut p = Parser::parser_from_string(")");
         assert_eq!(
             Err(FlError::new("unexpected )")),
             p.next().unwrap()
@@ -182,7 +182,7 @@ mod tests {
 
     #[test]
     fn test_error_has_position() {
-        let mut p = Parser::parser_from_str("  )");
+        let mut p = Parser::parser_from_string("  )");
         let err = p.next().unwrap().unwrap_err();
         let pos = err.position().expect("position expected");
         assert_eq!((1, 3), (pos.line, pos.column));
@@ -190,7 +190,7 @@ mod tests {
 
     #[test]
     fn test_unclosed_list_reports_position_of_open_paren() {
-        let mut p = Parser::parser_from_str("1\n  (2 3");
+        let mut p = Parser::parser_from_string("1\n  (2 3");
         assert!(p.next().unwrap().is_ok());
         let err = p.next().unwrap().unwrap_err();
         let pos = err.position().expect("position expected");
@@ -199,7 +199,7 @@ mod tests {
 
     #[test]
     fn test_empty_list() {
-        let mut p = Parser::parser_from_str("()");
+        let mut p = Parser::parser_from_string("()");
         let value = p.next().unwrap();
         match value {
             Ok(Value::List(list)) => assert_eq!(0, list.len()),
@@ -209,7 +209,7 @@ mod tests {
 
     #[test]
     fn test_list_of_integers() {
-        let mut p = Parser::parser_from_str("(1 2 3)");
+        let mut p = Parser::parser_from_string("(1 2 3)");
         let value = p.next().unwrap();
         match value {
             Ok(Value::List(list)) => verify(&list, 1, 4),
