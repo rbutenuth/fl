@@ -3,6 +3,7 @@ use crate::{
     Value,
     interpreter::{Engine, FlFunction, Scope},
 };
+use crate::interpreter::scope::MapScope;
 use std::sync::Arc;
 
 pub fn add_control_structures_functions(scope: &dyn Scope) {
@@ -129,7 +130,29 @@ pub fn add_control_structures_functions(scope: &dyn Scope) {
         ],
     );
 
-    // TODO: scope
+    FlFunction::put_in_scope(
+        &*scope,
+        "control_structures",
+        "scope",
+        "Evaluate the expressions within a new scope, return value of last expression.",
+        vec![Parameter::new_from_spec("expression", "Expression to evaluate", "").unwrap()],
+        true,
+        Box::new(|scope: &Arc<dyn Scope>, p: &Vec<Value>| {
+            let local_scope: Arc<dyn Scope> =
+                Arc::new(MapScope::new("scope", Some(Arc::clone(scope))));
+            let mut value = Value::Nil;
+            for expression in p {
+                value = expression.evaluate(&local_scope)?;
+            }
+            Ok(value)
+        }),
+        vec![
+            Sample::new("(scope 1)", "1"),
+            Sample::new("(scope 1 2 3)", "3"),
+            Sample::new("(scope 1 (/ 1 0) 3)", "Error: division by 0"),
+        ],
+    );
+
     // TODO: pipeline
     // TODO: synchronized
     // TODO: throw
