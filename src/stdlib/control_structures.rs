@@ -188,9 +188,25 @@ pub fn add_control_structures_functions(scope: &dyn Scope) {
         ],
     );
 
-    // TODO: synchronized
-    // TODO: throw
+    FlFunction::put_in_scope(
+        &*scope,
+        "control_structures",
+        "throw",
+        "Throw an error with the given message.",
+        vec![Parameter::new_from_spec("message", "Message of the error", "ET").unwrap()],
+        false,
+        Box::new(|_scope: &Arc<dyn Scope>, p: &Vec<Value>| {
+            Err(FlError::new(&*p[0].as_text()?))
+        }),
+        vec![
+            Sample::new("(throw \"oops\")", "Error: oops"),
+            Sample::new("(throw 1)", "Error: Parameter message expects Text, but got Integer"),
+        ],
+    );
+
     // TODO: throw-with-id
     // TODO: try-catch
     // TODO: try-with
+    
+    // TODO: synchronized
 }
