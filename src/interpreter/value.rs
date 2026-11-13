@@ -250,7 +250,7 @@ impl Value {
                     // The error already has a position (from a deeper call): add this call
                     // as a new error and keep the inner one as source.
                     Some(position) => {
-                        FlError::with_source(format!("error in call of '{}'", first), error)
+                        FlError::with_source(error.message.clone(), error)
                             .with_position(position)
                     }
                     None => error,

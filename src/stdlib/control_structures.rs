@@ -23,7 +23,7 @@ pub fn add_control_structures_functions(scope: &dyn Scope) {
     vec![
         Sample::new("(if 1 2)", "2"),
         Sample::new("(if 0 2)", "nil"),
-        Sample::new("(if 1 (/ 1 0))", "Error: error in call of 'if'"),
+        Sample::new("(if 1 (/ 1 0))", "Error: division by 0"),
         Sample::new("(if 0 (/ 1 0))", "nil"),
         ]
     );
