@@ -4,6 +4,7 @@ use crate::{
     interpreter::{Engine, FlFunction, Scope},
 };
 use crate::interpreter::scope::MapScope;
+use crate::FlError;
 use std::sync::Arc;
 
 pub fn add_control_structures_functions(scope: &dyn Scope) {
@@ -153,7 +154,40 @@ pub fn add_control_structures_functions(scope: &dyn Scope) {
         ],
     );
 
-    // TODO: pipeline
+    FlFunction::put_in_scope(
+        &*scope,
+        "control_structures",
+        "pipeline",
+        "Evaluate the expressions within a new scope, return value of last expression. \
+         The evaluation result of each expression is bound to the symbol given as \
+         parameter pipe-key, so the next expression can use it.",
+        vec![
+            Parameter::new_from_spec("pipe-key", "Symbol the result of the last expression is bound to", "S")
+                .unwrap(),
+            Parameter::new_from_spec("expression", "Expression to evaluate", "").unwrap(),
+        ],
+        true,
+        Box::new(|scope: &Arc<dyn Scope>, p: &Vec<Value>| {
+            let pipe_key = match &p[0] {
+                Value::Symbol(symbol) => symbol.name().to_string(),
+                other => return Err(FlError::new(format!("Not a symbol: {:?}", other))),
+            };
+            let local_scope: Arc<dyn Scope> =
+                Arc::new(MapScope::new("pipeline", Some(Arc::clone(scope))));
+            let mut value = Value::Nil;
+            for expression in &p[1..] {
+                value = expression.evaluate(&local_scope)?;
+                local_scope.put(&pipe_key, value.clone());
+            }
+            Ok(value)
+        }),
+        vec![
+            Sample::new("(pipeline x 1)", "1"),
+            Sample::new("(pipeline x 1 (+ x 1) (* x 10))", "20"),
+            Sample::new("(pipeline x 1 (/ x 0) 3)", "Error: division by 0"),
+        ],
+    );
+
     // TODO: synchronized
     // TODO: throw
     // TODO: throw-with-id
