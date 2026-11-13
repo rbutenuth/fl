@@ -107,7 +107,28 @@ pub fn add_control_structures_functions(scope: &dyn Scope) {
         ],
     );
 
-    // TODO: sequential
+    FlFunction::put_in_scope(
+        &*scope,
+        "control_structures",
+        "sequential",
+        "Evaluate the parameters, return value of last parameter.",
+        vec![Parameter::new_from_spec("element", "Expression to evaluate", "").unwrap()],
+        true,
+        Box::new(|scope: &Arc<dyn Scope>, p: &Vec<Value>| {
+            let mut value = Value::Nil;
+            for element in p {
+                value = element.evaluate(scope)?;
+            }
+            Ok(value)
+        }),
+        vec![
+            Sample::new("(sequential 1)", "1"),
+            Sample::new("(sequential 1 2 3)", "3"),
+            Sample::new("(sequential 1 (/ 1 0) 3)", "Error: division by 0"),
+            Sample::new("(sequential (/ 1 0) 3)", "Error: division by 0"),
+        ],
+    );
+
     // TODO: scope
     // TODO: pipeline
     // TODO: synchronized
