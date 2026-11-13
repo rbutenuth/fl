@@ -348,7 +348,7 @@ mod tests {
         assert_eq!(ValueType::Map, Value::Map().as_value_type());
         assert_eq!(ValueType::Object, Value::Object().as_value_type());
         let function = FlFunction::new("p", "f", "", vec![], false, Box::new(
-            |_scope: &dyn Scope, _parameters: &Vec<Value>| Ok(Value::Nil),
+            |_scope: &Arc<dyn Scope>, _parameters: &Vec<Value>| Ok(Value::Nil),
         ), Vec::new());
         assert_eq!(ValueType::Function, Value::Function(Arc::new(function)).as_value_type());
     }
@@ -404,7 +404,7 @@ mod tests {
                 Parameter::new("b", "", ValueType::Integer, true),
             ],
             false,
-            Box::new(|_scope: &dyn Scope, p: &Vec<Value>| match (&p[0], &p[1]) {
+            Box::new(|_scope: &Arc<dyn Scope>, p: &Vec<Value>| match (&p[0], &p[1]) {
                 (Value::Integer(a), Value::Integer(b)) => Ok(Value::Integer(a + b)),
                 _ => Err(FlError::new("not integers")),
             }),
@@ -417,7 +417,7 @@ mod tests {
             "returns its argument unevaluated",
             vec![Parameter::new("a", "", ValueTypes::ALL, false)],
             false,
-            Box::new(|_scope: &dyn Scope, p: &Vec<Value>| Ok(p[0].clone())),
+            Box::new(|_scope: &Arc<dyn Scope>, p: &Vec<Value>| Ok(p[0].clone())),
             Vec::new());
         scope.put("add", Value::Function(Arc::new(add)));
         scope.put("quote", Value::Function(Arc::new(quote)));

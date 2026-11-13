@@ -6,15 +6,15 @@ use crate::interpreter::Scope;
 use crate::{FlError, Value, ValueType, ValueTypes};
 
 pub trait Callable: Send + Sync {
-    fn call(&self, scope: &dyn Scope, parameters: &Vec<Value>) -> Result<Value, FlError>;
+    fn call(&self, scope: &Arc<dyn Scope>, parameters: &Vec<Value>) -> Result<Value, FlError>;
 }
 
 /// Closures (and function pointers) with the right signature are callables.
 impl<F> Callable for F
 where
-    F: Fn(&dyn Scope, &Vec<Value>) -> Result<Value, FlError> + Send + Sync,
+    F: Fn(&Arc<dyn Scope>, &Vec<Value>) -> Result<Value, FlError> + Send + Sync,
 {
-    fn call(&self, scope: &dyn Scope, parameters: &Vec<Value>) -> Result<Value, FlError> {
+    fn call(&self, scope: &Arc<dyn Scope>, parameters: &Vec<Value>) -> Result<Value, FlError> {
         self(scope, parameters)
     }
 }
@@ -221,10 +221,10 @@ impl FlFunction {
                 .map_or(false, |p| p.eager);
             parameters.push(if eager { argument.evaluate(scope)? } else { argument });
         }
-        self.call(&**scope, parameters)
+        self.call(scope, parameters)
     }
 
-    pub fn call(&self, scope: &dyn Scope, parameters: Vec<Value>) -> Result<Value, FlError> {
+    pub fn call(&self, scope: &Arc<dyn Scope>, parameters: Vec<Value>) -> Result<Value, FlError> {
         let expected = self.parameters.len();
         let given = parameters.len();
         // Extra (vararg) parameters beyond the declared ones are not checked.
@@ -275,7 +275,7 @@ mod tests {
     struct First;
 
     impl Callable for First {
-        fn call(&self, _scope: &dyn Scope, parameters: &Vec<Value>) -> Result<Value, FlError> {
+        fn call(&self, _scope: &Arc<dyn Scope>, parameters: &Vec<Value>) -> Result<Value, FlError> {
             Ok(parameters[0].clone())
         }
     }
@@ -294,7 +294,7 @@ mod tests {
 
     #[test]
     fn new_and_call() {
-        let scope = MapScope::new("global", None);
+        let scope: Arc<dyn Scope> = Arc::new(MapScope::new("global", None));
 
         let result = function(false).call(&scope, vec![Value::Integer(7)]);
 
@@ -303,7 +303,7 @@ mod tests {
 
     #[test]
     fn too_many_parameters_without_vararg_is_error() {
-        let scope = MapScope::new("global", None);
+        let scope: Arc<dyn Scope> = Arc::new(MapScope::new("global", None));
 
         let result = function(false).call(&scope, vec![Value::Integer(1), Value::Integer(2)]);
 
@@ -312,7 +312,7 @@ mod tests {
 
     #[test]
     fn too_many_parameters_with_vararg_is_ok() {
-        let scope = MapScope::new("global", None);
+        let scope: Arc<dyn Scope> = Arc::new(MapScope::new("global", None));
 
         let result = function(true).call(&scope, vec![Value::Integer(1), Value::Integer(2)]);
 
@@ -321,14 +321,14 @@ mod tests {
 
     #[test]
     fn closure_as_callable_doubles_numbers() {
-        let scope: MapScope = MapScope::new("global", None);
+        let scope: Arc<dyn Scope> = Arc::new(MapScope::new("global", None));
         let multiply_by_2 = FlFunction::new(
             "some package",
             "multiply_by_2",
             "multiplies a number by 2",
             vec![Parameter::new("n", "an integer or a float", ValueTypes::NUMBER, true)],
             false,
-            Box::new(|_scope: &dyn Scope, parameters: &Vec<Value>| match &parameters[0] {
+            Box::new(|_scope: &Arc<dyn Scope>, parameters: &Vec<Value>| match &parameters[0] {
                 Value::Integer(i) => Ok(Value::Integer(i * 2)),
                 Value::Float(f) => Ok(Value::Float(f * 2.0)),
                 other => Err(FlError::new(format!(
@@ -369,14 +369,14 @@ mod tests {
 
     #[test]
     fn parameter_types_are_checked_before_the_callable_runs() {
-        let scope = MapScope::new("global", None);
+        let scope: Arc<dyn Scope> = Arc::new(MapScope::new("global", None));
         let text_only = FlFunction::new(
             "some package",
             "length",
             "never called with wrong types",
             vec![Parameter::new("s", "a text", ValueType::Text, true)],
             false,
-            Box::new(|_scope: &dyn Scope, _parameters: &Vec<Value>| -> Result<Value, FlError> {
+            Box::new(|_scope: &Arc<dyn Scope>, _parameters: &Vec<Value>| -> Result<Value, FlError> {
                 Ok(Value::Nil)
             }),
             Vec::new()
@@ -392,14 +392,14 @@ mod tests {
 
     #[test]
     fn vararg_parameters_beyond_declared_ones_are_not_checked() {
-        let scope = MapScope::new("global", None);
+        let scope: Arc<dyn Scope> = Arc::new(MapScope::new("global", None));
         let function = FlFunction::new(
             "p",
             "f",
             "",
             vec![Parameter::new("n", "a number", ValueTypes::NUMBER, true)],
             true,
-            Box::new(|_scope: &dyn Scope, parameters: &Vec<Value>| Ok(parameters[0].clone())),
+            Box::new(|_scope: &Arc<dyn Scope>, parameters: &Vec<Value>| Ok(parameters[0].clone())),
             Vec::new()
         );
 

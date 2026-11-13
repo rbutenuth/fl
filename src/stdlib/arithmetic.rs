@@ -1,3 +1,4 @@
+use std::sync::Arc;
 use crate::{FlError, Value, interpreter::{FlFunction, Scope}};
 use crate::interpreter::function::{Sample, Parameter};
 
@@ -112,8 +113,8 @@ pub fn add_arithmetic_functions(scope: &dyn Scope) {
             Parameter::new_from_spec("value", "Values to add", "EID").unwrap(),
         ],
         true,
-        Box::new(|_scope: &dyn Scope, p: &Vec<Value>|{
-            compute(Operator::Plus, p)
+        Box::new(|_scope: &Arc<dyn Scope>, p: &Vec<Value>|{
+          compute(Operator::Plus, p)
         }),
         vec![Sample::new("(+ 1 2)", "3")]);
 
@@ -125,7 +126,7 @@ pub fn add_arithmetic_functions(scope: &dyn Scope) {
             Parameter::new_from_spec("value", "Values to subtract", "EID").unwrap(),
         ],
         true,
-        Box::new(|_scope: &dyn Scope, p: &Vec<Value>|{
+        Box::new(|_scope: &Arc<dyn Scope>, p: &Vec<Value>|{
             compute(Operator::Minus, p)
         }),
         vec![Sample::new("(- 3 2)", "1"), Sample::new("(- 3)", "-3")]);
@@ -138,7 +139,7 @@ pub fn add_arithmetic_functions(scope: &dyn Scope) {
             Parameter::new_from_spec("value", "Values to multiply", "EID").unwrap(),
         ],
         true,
-        Box::new(|_scope: &dyn Scope, p: &Vec<Value>|{
+        Box::new(|_scope: &Arc<dyn Scope>, p: &Vec<Value>|{
             compute(Operator::Times, p)
         }),
         vec![Sample::new("(* 3 2)", "6")]);
@@ -151,7 +152,7 @@ pub fn add_arithmetic_functions(scope: &dyn Scope) {
             Parameter::new_from_spec("value", "Values to divide", "EID").unwrap(),
         ],
         true,
-        Box::new(|_scope: &dyn Scope, p: &Vec<Value>|{
+        Box::new(|_scope: &Arc<dyn Scope>, p: &Vec<Value>|{
             compute(Operator::Divide, p)
         }),
         vec![
@@ -167,7 +168,7 @@ pub fn add_arithmetic_functions(scope: &dyn Scope) {
             Parameter::new_from_spec("value", "Values to divide", "EID").unwrap(),
         ],
         true,
-        Box::new(|_scope: &dyn Scope, p: &Vec<Value>|{
+        Box::new(|_scope: &Arc<dyn Scope>, p: &Vec<Value>|{
             compute(Operator::Modulo, p)
         }),
         vec![
@@ -183,7 +184,7 @@ pub fn add_arithmetic_functions(scope: &dyn Scope) {
             Parameter::new_from_spec("value", "Values to exponentiate", "EID").unwrap(),
         ],
         true,
-        Box::new(|_scope: &dyn Scope, p: &Vec<Value>|{
+        Box::new(|_scope: &Arc<dyn Scope>, p: &Vec<Value>|{
             compute(Operator::Exp, p)
         }),
         vec![Sample::new("(** 2 10)", "1024"), Sample::new("(** 0 0)", "Error: 0^0")]);

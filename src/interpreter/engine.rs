@@ -1,11 +1,11 @@
 use std::sync::Arc;
 
-use crate::interpreter::scope::MapScope;
 use crate::interpreter::function::Sample;
+use crate::interpreter::scope::MapScope;
 use crate::interpreter::{FlFunction, Parameter, Scope};
-use crate::list::scope_filler;
-use crate::{parser::Parser, stdlib::arithmetic};
+use crate::list::list_functions_scope_filler;
 use crate::{FlError, Value};
+use crate::{parser::Parser, stdlib::arithmetic, stdlib::control_structures};
 
 pub struct Engine {
     pub scope: Arc<dyn Scope>,
@@ -22,17 +22,18 @@ impl Engine {
             "Return the parameter without evaluation.",
             vec![Parameter::new_from_spec("value", "Any value", "").unwrap()],
             false,
-            Box::new(|_scope: &dyn Scope, p: &Vec<Value>| {
+            Box::new(|_scope: &Arc<dyn Scope>, p: &Vec<Value>| {
                 match &p[0] {
                     // TODO: Add specific code if p[0] is a "Paramter", then returned unevaluted wrapped value.
                     x => Ok(x.clone()),
                 }
             }),
-            vec![Sample::new("(quote (1 2 3))", "(1 2 3)")]
+            vec![Sample::new("(quote (1 2 3))", "(1 2 3)")],
         );
 
-        scope_filler::add_list_functions(global.as_ref());
+        list_functions_scope_filler::add_list_functions(global.as_ref());
         arithmetic::add_arithmetic_functions(global.as_ref());
+        control_structures::add_control_structures_functions(global.as_ref());
 
         Engine { scope: global }
     }
@@ -51,14 +52,28 @@ impl Engine {
         }
         results
     }
+
+    pub fn evaluate_to_boolean(p: &Value) -> bool {
+        match p {
+            Value::Nil => false,
+            Value::Integer(i) => *i != 0,
+            Value::Float(f) => *f != 0.0,
+            Value::List(list) => !list.is_empty(),
+            Value::Symbol(_symbol) => true,
+            Value::Text(s) => s.len() != 0,
+            Value::Map() => todo!(),
+            Value::Object() => todo!(),
+            Value::Function(_fl_function) => true,
+        }
+    }
 }
 
 #[cfg(test)]
 mod tests {
     use std::assert_eq;
 
-    use crate::{FlError, Value};
     use crate::interpreter::Engine;
+    use crate::{FlError, Value};
 
     #[test]
     fn evaluate_string_with_two_expressions() {
@@ -91,7 +106,9 @@ mod tests {
                 if results.len() != 1 {
                     failures.push(format!(
                         "{}: \"{}\" returned {} results instead of one",
-                        name, sample.expression, results.len()
+                        name,
+                        sample.expression,
+                        results.len()
                     ));
                     continue;
                 }
@@ -126,7 +143,12 @@ mod tests {
         }
 
         assert!(sample_count > 0, "no samples found in any function");
-        assert!(failures.is_empty(), "{} of {} samples failed:\n{}",
-            failures.len(), sample_count, failures.join("\n"));
+        assert!(
+            failures.is_empty(),
+            "{} of {} samples failed:\n{}",
+            failures.len(),
+            sample_count,
+            failures.join("\n")
+        );
     }
 }

@@ -1,5 +1,7 @@
+use std::sync::Arc;
 use crate::{Value, interpreter::{FlFunction, Scope}, list::FlList};
 use crate::interpreter::function::{Sample, Parameter};
+use crate::interpreter::Engine;
 
 pub fn add_list_functions(scope: &dyn Scope) {
 
@@ -12,7 +14,7 @@ pub fn add_list_functions(scope: &dyn Scope) {
             Parameter::new_from_spec("list", "List where element is added.", "EL").unwrap(),
         ],
         false,
-        Box::new(|_scope: &dyn Scope, p: &Vec<Value>|{
+        Box::new(|_scope: &Arc<dyn Scope>, p: &Vec<Value>|{
             Ok(Value::List(FlList::add_at_start(&p[1].as_list()?, p[0].clone())))
         }),
         vec![Sample::new("(add-front 1 '(2))", "(1 2)")]);
@@ -26,7 +28,7 @@ pub fn add_list_functions(scope: &dyn Scope) {
             Parameter::new_from_spec("value", "Value to add.", "E").unwrap(),
         ],
         false,
-        Box::new(|_scope: &dyn Scope, p: &Vec<Value>|{
+        Box::new(|_scope: &Arc<dyn Scope>, p: &Vec<Value>|{
             Ok(Value::List(FlList::add_at_end(&p[0].as_list()?, p[1].clone())))
         }),
         vec![Sample::new("(add-end '(1) 2)", "(1 2)")]);
@@ -40,7 +42,7 @@ pub fn add_list_functions(scope: &dyn Scope) {
             Parameter::new_from_spec("second", "Second list", "EL").unwrap(),
         ],
         false,
-        Box::new(|_scope: &dyn Scope, p: &Vec<Value>|{
+        Box::new(|_scope: &Arc<dyn Scope>, p: &Vec<Value>|{
             Ok(Value::List(FlList::append(&p[0].as_list()?, &p[1].as_list()?)))
         }),
         vec![Sample::new("(append '(1 2) '(3 4))", "(1 2 3 4)")]);
@@ -53,7 +55,7 @@ pub fn add_list_functions(scope: &dyn Scope) {
             Parameter::new_from_spec("list", "Non empty list.", "EL").unwrap(),
         ],
         false,
-        Box::new(|_scope: &dyn Scope, p: &Vec<Value>|{
+        Box::new(|_scope: &Arc<dyn Scope>, p: &Vec<Value>|{
             FlList::first(&p[0].as_list()?)
         }),
         vec![
@@ -68,7 +70,7 @@ pub fn add_list_functions(scope: &dyn Scope) {
             Parameter::new_from_spec("list", "Non empty list.", "EL").unwrap(),
         ],
         false,
-        Box::new(|_scope: &dyn Scope, p: &Vec<Value>|{
+        Box::new(|_scope: &Arc<dyn Scope>, p: &Vec<Value>|{
             FlList::last(&p[0].as_list()?)
         }),
         vec![
@@ -84,7 +86,7 @@ pub fn add_list_functions(scope: &dyn Scope) {
             Parameter::new_from_spec("index", "Index (starting at 0) of element to get.", "EI").unwrap(),
         ],
         false,
-        Box::new(|_scope: &dyn Scope, p: &Vec<Value>|{
+        Box::new(|_scope: &Arc<dyn Scope>, p: &Vec<Value>|{
             FlList::get(&p[0].as_list()?, p[1].as_integer()? as isize)
         }),
         vec![Sample::new("(get-element '(1 2 3) 1)", "2")]);
@@ -99,7 +101,7 @@ pub fn add_list_functions(scope: &dyn Scope) {
             Parameter::new_from_spec("element", "New value.", "E").unwrap(),
         ],
         false,
-        Box::new(|_scope: &dyn Scope, p: &Vec<Value>|{
+        Box::new(|_scope: &Arc<dyn Scope>, p: &Vec<Value>|{
             Ok(Value::List(FlList::set(&p[0].as_list()?, p[1].as_integer()? as isize, p[2].clone())?))
         }),
         vec![Sample::new("(set-element '(1 2 3) 1 42)", "(1 42 3)")]);
@@ -119,7 +121,7 @@ pub fn add_list_functions(scope: &dyn Scope) {
             Parameter::new_from_spec("num-replaced", "Number of elements to remove which will be removed.", "EI").unwrap(),
         ],
         false,
-        Box::new(|_scope: &dyn Scope, p: &Vec<Value>|{
+        Box::new(|_scope: &Arc<dyn Scope>, p: &Vec<Value>|{
             Ok(Value::List(FlList::replace_elements(
                 &p[0].as_list()?, 
                 p[1].as_integer()? as isize, 
@@ -137,7 +139,7 @@ pub fn add_list_functions(scope: &dyn Scope) {
             Parameter::new_from_spec("value", "Value to test.", "E").unwrap(),
         ],
         false,
-        Box::new(|_scope: &dyn Scope, p: &Vec<Value>|{
+        Box::new(|_scope: &Arc<dyn Scope>, p: &Vec<Value>|{
             Ok(Value::Integer(match p[0] {
                 Value::List(_) => 1,
                 _ => 0,
@@ -153,7 +155,7 @@ pub fn add_list_functions(scope: &dyn Scope) {
             Parameter::new_from_spec("values", "The values to create a list from.", "E").unwrap(),
         ],
         true,
-        Box::new(|_scope: &dyn Scope, p: &Vec<Value>|{
+        Box::new(|_scope: &Arc<dyn Scope>, p: &Vec<Value>|{
             Ok(Value::List(FlList::from_iterator_values(p.iter().cloned())))
         }),
         vec![Sample::new("(list 1 2 3 4)", "(1 2 3 4)")]);
@@ -168,7 +170,7 @@ pub fn add_list_functions(scope: &dyn Scope) {
             Parameter::new_from_spec("list", "The list to split", "EL").unwrap(),
         ],
         false,
-        Box::new(|_scope: &dyn Scope, p: &Vec<Value>|{
+        Box::new(|_scope: &Arc<dyn Scope>, p: &Vec<Value>|{
             Ok(Value::List(FlList::lower_half(&p[0].as_list()?)))
         }),
         vec![Sample::new("(lower-half '(1 2 3 4 5 6 7 8 9))", "(1 2 3 4)")]);
@@ -183,7 +185,7 @@ pub fn add_list_functions(scope: &dyn Scope) {
             Parameter::new_from_spec("list", "The list to split", "EL").unwrap(),
         ],
         false,
-        Box::new(|_scope: &dyn Scope, p: &Vec<Value>|{
+        Box::new(|_scope: &Arc<dyn Scope>, p: &Vec<Value>|{
             Ok(Value::List(FlList::upper_half(&p[0].as_list()?)))
         }),
         vec![Sample::new("(upper-half '(1 2 3 4 5 6 7 8 9))", "(5 6 7 8 9)")]);
@@ -197,7 +199,7 @@ pub fn add_list_functions(scope: &dyn Scope) {
             Parameter::new_from_spec("list", "Non empty list.", "EL").unwrap(),
         ],
         false,
-        Box::new(|_scope: &dyn Scope, p: &Vec<Value>|{
+        Box::new(|_scope: &Arc<dyn Scope>, p: &Vec<Value>|{
             Ok(Value::List(FlList::remove_last(&p[0].as_list()?)?))
         }),
         vec![Sample::new("(remove-last '(1 2 3 4 5 6))", "(1 2 3 4 5)")]);
@@ -210,7 +212,7 @@ pub fn add_list_functions(scope: &dyn Scope) {
             Parameter::new_from_spec("list", "Non empty list.", "EL").unwrap(),
         ],
         false,
-        Box::new(|_scope: &dyn Scope, p: &Vec<Value>|{
+        Box::new(|_scope: &Arc<dyn Scope>, p: &Vec<Value>|{
             Ok(Value::List(FlList::remove_first(&p[0].as_list()?)?))
         }),
         vec![Sample::new("(remove-first '(1 2 3 4 5 6))", "(2 3 4 5 6)")]);
@@ -223,7 +225,7 @@ pub fn add_list_functions(scope: &dyn Scope) {
             Parameter::new_from_spec("list", "list to check", "EL").unwrap(),
         ],
         false,
-        Box::new(|_scope: &dyn Scope, p: &Vec<Value>|{
+        Box::new(|_scope: &Arc<dyn Scope>, p: &Vec<Value>|{
             Ok(Value::Integer(FlList::len(&p[0].as_list()?) as i64))
         }),
         vec![Sample::new("(size '(1 2 3 4))", "4")]);
@@ -236,19 +238,8 @@ pub fn add_list_functions(scope: &dyn Scope) {
             Parameter::new_from_spec("value", "value to check", "E").unwrap(),
         ],
         false,
-        Box::new(|_scope: &dyn Scope, p: &Vec<Value>|{
-            Ok(Value::Integer(
-            match &p[0] {
-                Value::Nil => 1,
-                Value::Integer(i) => if *i == 0 { 1 } else { 0 },
-                Value::Float(f) => if *f == 0.0 { 1 } else { 0 },
-                Value::List(list) => if list.is_empty() { 1 } else { 0 },
-                Value::Symbol(_symbol) => 0,
-                Value::Text(s) => if s.len() == 0 { 1 } else { 0 },
-                Value::Map() => todo!(),
-                Value::Object() => todo!(),
-                Value::Function(_fl_function) => 0,
-            }))
+        Box::new(|_scope: &Arc<dyn Scope>, p: &Vec<Value>|{
+            Ok(Value::Integer(if Engine::evaluate_to_boolean(&p[0]) { 0 } else { 1 }))
         }),
         vec![
             Sample::new("(is-empty '(1 2 3 4))", "0"), 
@@ -272,7 +263,7 @@ pub fn add_list_functions(scope: &dyn Scope) {
             Parameter::new_from_spec("end", "Index of first element not in the result list.", "EI").unwrap(),
         ],
         false,
-        Box::new(|_scope: &dyn Scope, p: &Vec<Value>|{
+        Box::new(|_scope: &Arc<dyn Scope>, p: &Vec<Value>|{
             Ok(Value::List(FlList::sub_list(
                 &p[0].as_list()?, 
                 p[1].as_integer()? as isize, 

@@ -3,7 +3,7 @@ use std::sync::Arc;
 
 use crate::{FlError, Value};
 
-pub mod scope_filler;
+pub mod list_functions_scope_filler;
 mod access;
 mod add_and_join;
 mod construct;
