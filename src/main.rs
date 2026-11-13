@@ -14,14 +14,14 @@ fn main() {
     let _scope = Arc::clone(&engine.scope);
 
     for file in &files {
-        let source = match fs::read_to_string(file) {
+        let content = match fs::read_to_string(file) {
             Ok(s) => s,
             Err(e) => {
                 eprintln!("error reading {}: {}", file, e);
                 process::exit(1);
             }
         };
-        for value_or_err in Parser::parser_from_str(&source) {
+        for value_or_err in Parser::parser_from_string_with_source(file, &content) {
             match value_or_err {
                 Ok(value) => match engine.evaluate(value) {
                     Ok(result) => println!("{}", result),

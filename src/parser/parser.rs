@@ -52,6 +52,14 @@ impl Parser {
         Parser::from_scanner(Scanner::from_str(str))
     }
 
+    pub fn parser_from_string_with_source(name: impl Into<String>, content: impl Into<String>) -> Parser {
+        let chars: Vec<char> = content.into().chars().collect();
+        Parser::from_scanner(Scanner::from_named_source(
+            Position { name: Arc::new(name.into()), line: 1, column: 1 },
+            Box::new(chars.into_iter()),
+        ))
+    }
+
     fn integer(&mut self, i: i64) -> Value {
         self.fetch_next_token();
         Value::Integer(i)
