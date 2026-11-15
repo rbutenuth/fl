@@ -24,7 +24,8 @@ pub trait Scope: Send + Sync {
     /// Put a key value mapping in the scope, may overwrite an existing mapping.
     /// Returns the old mapping for this key (or Nil).
     /// Removes the mapping if value is Value::Nil. 
-    fn put(&self, key: &str, value: Value) -> Value;
+    /// May fail when for some reason it is not allowed to put a value with this key.
+    fn put(&self, key: &str, value: Value) -> Result<Value, FlError>;
 
     /// Replace a value in this scope, if not there, search through scope chain until
     /// value is found. Returns an Error if there is no mapping in the whole chain.
@@ -63,9 +64,9 @@ pub struct MapScope {
 }
 
 impl MapScope {
-    pub fn new(name: &str, next: Option<Arc<dyn Scope>>) -> MapScope {
+    pub fn new(name: impl Into<String>, next: Option<Arc<dyn Scope>>) -> Self {
         MapScope {
-            name: String::from(name),
+            name: name.into(),
             next,
             map: RwLock::new(HashMap::new()),
         }
@@ -110,14 +111,14 @@ impl Scope for MapScope {
         }
     }
 
-    fn put(&self, key: &str, value: Value) -> Value {
+    fn put(&self, key: &str, value: Value) -> Result<Value, FlError> {
         let mut map = self.map.write().expect("scope lock poisoned");
         let old = if let Value::Nil = value {
             map.remove(key)
         } else {
             map.insert(String::from(key), value)
         };
-        old.unwrap_or(Value::Nil)
+        Ok(old.unwrap_or(Value::Nil))
     }
 
     fn replace(&self, key: &str, new_value: Value) -> Result<Value, FlError> {
@@ -174,28 +175,28 @@ pub mod tests {
     #[test]
     fn put_and_get() {
         let scope = MapScope::new("global", None);
-        assert_eq!(Value::Nil, scope.put("a", int(1)));
+        assert_eq!(Value::Nil, scope.put("a", int(1)).unwrap());
         assert_eq!(int(1), scope.get("a"));
-        assert_eq!(int(1), scope.put("a", int(2)));
+        assert_eq!(int(1), scope.put("a", int(2)).unwrap());
         assert_eq!(int(2), scope.get("a"));
     }
 
     #[test]
     fn put_nil_removes() {
         let scope = MapScope::new("global", None);
-        scope.put("a", int(1));
-        assert_eq!(int(1), scope.put("a", Value::Nil));
+        let _ = scope.put("a", int(1));
+        assert_eq!(int(1), scope.put("a", Value::Nil).unwrap());
         assert_eq!(Value::Nil, scope.get("a"));
-        assert_eq!(Value::Nil, scope.put("a", Value::Nil));
+        assert_eq!(Value::Nil, scope.put("a", Value::Nil).unwrap());
     }
 
     #[test]
     fn get_walks_chain() {
         let global = Arc::new(MapScope::new("global", None));
-        global.put("a", int(1));
-        global.put("b", int(2));
+        let _ = global.put("a", int(1));
+        let _ = global.put("b", int(2));
         let local = MapScope::new("local", Some(global.clone()));
-        local.put("b", int(3));
+        let _ = local.put("b", int(3));
 
         assert_eq!(int(1), local.get("a"));
         assert_eq!(int(3), local.get("b"));
@@ -207,7 +208,7 @@ pub mod tests {
     #[test]
     fn replace_walks_chain() {
         let global = Arc::new(MapScope::new("global", None));
-        global.put("a", int(1));
+        let _ = global.put("a", int(1));
         let local = MapScope::new("local", Some(global.clone()));
 
         assert_eq!(Ok(int(1)), local.replace("a", int(2)));
@@ -218,9 +219,9 @@ pub mod tests {
     #[test]
     fn replace_prefers_local() {
         let global = Arc::new(MapScope::new("global", None));
-        global.put("a", int(1));
+        let _ = global.put("a", int(1));
         let local = MapScope::new("local", Some(global.clone()));
-        local.put("a", int(2));
+        let _ = local.put("a", int(2));
 
         assert_eq!(Ok(int(2)), local.replace("a", int(3)));
         assert_eq!(int(3), local.get("a"));
@@ -238,7 +239,7 @@ pub mod tests {
     #[test]
     fn replace_nil_removes() {
         let scope = MapScope::new("global", None);
-        scope.put("a", int(1));
+        let _ = scope.put("a", int(1));
         assert_eq!(Ok(int(1)), scope.replace("a", Value::Nil));
         assert_eq!(Value::Nil, scope.get("a"));
     }
@@ -246,13 +247,13 @@ pub mod tests {
     #[test]
     fn replace_local_does_not_walk_chain() {
         let global = Arc::new(MapScope::new("global", None));
-        global.put("a", int(1));
+        let _ = global.put("a", int(1));
         let local = MapScope::new("local", Some(global.clone()));
 
         assert!(local.replace_local("a", int(2)).is_err());
         assert_eq!(int(1), global.get("a"));
 
-        local.put("a", int(3));
+        let _ = local.put("a", int(3));
         assert_eq!(Ok(int(3)), local.replace_local("a", int(4)));
         assert_eq!(int(4), local.get("a"));
     }
@@ -260,7 +261,7 @@ pub mod tests {
     #[test]
     fn define() {
         let global = Arc::new(MapScope::new("global", None));
-        global.put("a", int(1));
+        let _ = global.put("a", int(1));
         let local = MapScope::new("local", Some(global.clone()));
 
         // Shadowing a mapping of an outer scope is allowed.
@@ -276,11 +277,11 @@ pub mod tests {
     #[test]
     fn entries() {
         let global = Arc::new(MapScope::new("global", None));
-        global.put("x", int(9));
+        let _ = global.put("x", int(9));
         let local = MapScope::new("local", Some(global.clone()));
         assert!(local.entries().is_empty());
 
-        local.put("a", int(1));
+        let _ = local.put("a", int(1));
 
         let entries = local.entries();
         assert_eq!(1, entries.len());
@@ -294,7 +295,7 @@ pub mod tests {
             .map(|i| {
                 let scope = scope.clone();
                 std::thread::spawn(move || {
-                    scope.put(&format!("key{}", i), int(i));
+                    let _ = scope.put(&format!("key{}", i), int(i));
                 })
             })
             .collect();

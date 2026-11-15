@@ -3,7 +3,7 @@
 use std::{fmt, sync::Arc};
 
 use crate::interpreter::Scope;
-use crate::{FlError, Value, ValueType, ValueTypes};
+use crate::{FlError, Position, Value, ValueType, ValueTypes};
 
 pub trait Callable: Send + Sync {
     fn call(&self, scope: &Arc<dyn Scope>, parameters: &Vec<Value>) -> Result<Value, FlError>;
@@ -94,7 +94,7 @@ impl Parameter {
     }
 
     fn check(&self, value: &Value) -> Result<(), FlError> {
-        if self.types.contains(value.as_value_type()) {
+        if self.types.contains(value.as_value_type()?) {
             Ok(())
         } else {
             Err(FlError::new(format!(
@@ -124,6 +124,7 @@ impl Sample {
 }
 
 pub struct FlFunction {
+    position: Position,
     package: String,
     name: String,
     comment: String,
@@ -135,6 +136,7 @@ pub struct FlFunction {
 
 impl fmt::Display for FlFunction {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        writeln!(f, "position: {}", self.position)?;
         writeln!(f, "package: {}", self.package)?;
         writeln!(f, "name: {}", self.name)?;
         writeln!(f, "comment: {}", self.comment)?;
@@ -157,6 +159,7 @@ impl fmt::Debug for FlFunction {
 
 impl FlFunction {
     pub fn new(
+        position: Position,
         package: impl Into<String>,
         name: impl Into<String>,
         comment: impl Into<String>,
@@ -166,6 +169,7 @@ impl FlFunction {
         samples: Vec<Sample>,
     ) -> Self {
         FlFunction {
+            position,
             package: package.into(),
             name: name.into(),
             comment: comment.into(),
@@ -174,6 +178,10 @@ impl FlFunction {
             callable,
             samples,
         }
+    }
+
+    pub fn get_position(&self) -> Position {
+        self.position.clone()
     }
 
     pub fn get_package(&self) -> &str {
@@ -188,6 +196,7 @@ impl FlFunction {
         &self.samples
     }
 
+    #[track_caller]
     pub fn put_in_scope(
         scope: &dyn Scope,
         package: impl Into<String>,
@@ -198,9 +207,10 @@ impl FlFunction {
         callable: Box<dyn Callable>,
         samples: Vec<Sample>,
     ) {
+        let position = Position::new(Arc::new(String::from(file!())), line!(), 1);
         let name = name.into();
-        let f = Self::new(package, name.clone(), comment, parameters, is_vararg, callable, samples);
-        scope.put(&name, Value::Function(Arc::new(f)));
+        let f = Self::new(position, package, name.clone(), comment, parameters, is_vararg, callable, samples);
+        scope.put(&name, Value::Function(Arc::new(f))).unwrap();
     }
 
     /// Evaluate the eager arguments in `scope`, then call the function.
@@ -282,6 +292,7 @@ mod tests {
 
     fn function(is_vararg: bool) -> FlFunction {
         FlFunction::new(
+            Position::anonymous_start(),
             "some package",
             "first",
             "returns first parameter",
@@ -323,6 +334,7 @@ mod tests {
     fn closure_as_callable_doubles_numbers() {
         let scope: Arc<dyn Scope> = Arc::new(MapScope::new("global", None));
         let multiply_by_2 = FlFunction::new(
+            Position::anonymous_start(),
             "some package",
             "multiply_by_2",
             "multiplies a number by 2",
@@ -350,7 +362,7 @@ mod tests {
     #[test]
     fn evaluate_to_integer_accepts_integers_and_symbols_bound_to_integers() {
         let scope: Arc<dyn Scope> = Arc::new(MapScope::new("global", None));
-        scope.put("a", Value::Integer(5));
+        let _ = scope.put("a", Value::Integer(5));
 
         assert_eq!(Ok(7), evaluate_to_integer(&scope, Value::Integer(7)));
         assert_eq!(
@@ -371,6 +383,7 @@ mod tests {
     fn parameter_types_are_checked_before_the_callable_runs() {
         let scope: Arc<dyn Scope> = Arc::new(MapScope::new("global", None));
         let text_only = FlFunction::new(
+            Position::anonymous_start(),
             "some package",
             "length",
             "never called with wrong types",
@@ -394,6 +407,7 @@ mod tests {
     fn vararg_parameters_beyond_declared_ones_are_not_checked() {
         let scope: Arc<dyn Scope> = Arc::new(MapScope::new("global", None));
         let function = FlFunction::new(
+            Position::anonymous_start(),
             "p",
             "f",
             "",

@@ -1,6 +1,7 @@
 use std::sync::Arc;
 
 use crate::interpreter::function::Sample;
+use crate::interpreter::lambda;
 use crate::interpreter::scope::MapScope;
 use crate::interpreter::{FlFunction, Parameter, Scope};
 use crate::list::list_functions_scope_filler;
@@ -34,6 +35,7 @@ impl Engine {
         list_functions_scope_filler::add_list_functions(global.as_ref());
         arithmetic::add_arithmetic_functions(global.as_ref());
         control_structures::add_control_structures_functions(global.as_ref());
+        lambda::add_lambda_functions(global.as_ref());
 
         Engine { scope: global }
     }
@@ -53,17 +55,18 @@ impl Engine {
         results
     }
 
-    pub fn evaluate_to_boolean(p: &Value) -> bool {
+    pub fn evaluate_to_boolean(p: &Value) -> Result<bool, FlError> {
         match p {
-            Value::Nil => false,
-            Value::Integer(i) => *i != 0,
-            Value::Float(f) => *f != 0.0,
-            Value::List(list) => !list.is_empty(),
-            Value::Symbol(_symbol) => true,
-            Value::Text(s) => s.len() != 0,
+            Value::Nil => Ok(false),
+            Value::Integer(i) => Ok(*i != 0),
+            Value::Float(f) => Ok(*f != 0.0),
+            Value::List(list) => Ok(!list.is_empty()),
+            Value::Symbol(_symbol) => Ok(true),
+            Value::Text(s) => Ok(s.len() != 0),
             Value::Map() => todo!(),
             Value::Object() => todo!(),
-            Value::Function(_fl_function) => true,
+            Value::Function(_fl_function) => Ok(true),
+            Value::Lazy(l) => Self::evaluate_to_boolean(&p.evaluate(&l.scope)?),
         }
     }
 }

@@ -21,7 +21,7 @@ pub fn add_control_structures_functions(scope: &dyn Scope) {
         ],
         false,
         Box::new(|scope: &Arc<dyn Scope>, p: &Vec<Value>| {
-            if Engine::evaluate_to_boolean(&p[0]) {
+            if Engine::evaluate_to_boolean(&p[0])? {
                 p[1].evaluate(scope)
             } else {
                 Ok(Value::Nil)
@@ -54,7 +54,7 @@ pub fn add_control_structures_functions(scope: &dyn Scope) {
         ],
         false,
         Box::new(|scope: &Arc<dyn Scope>, p: &Vec<Value>| {
-            if Engine::evaluate_to_boolean(&p[0]) {
+            if Engine::evaluate_to_boolean(&p[0])? {
                 p[1].evaluate(scope)
             } else {
                 p[2].evaluate(scope)
@@ -88,7 +88,7 @@ pub fn add_control_structures_functions(scope: &dyn Scope) {
         Box::new(|scope: &Arc<dyn Scope>, p: &Vec<Value>| {
             let mut i = 0;
             while i < p.len() -1 {
-                if Engine::evaluate_to_boolean(&p[i].evaluate(scope)?) {
+                if Engine::evaluate_to_boolean(&p[i].evaluate(scope)?)? {
                     return p[i + 1].evaluate(scope);
                 }
                 i += 2;
@@ -177,7 +177,7 @@ pub fn add_control_structures_functions(scope: &dyn Scope) {
             let mut value = Value::Nil;
             for expression in &p[1..] {
                 value = expression.evaluate(&local_scope)?;
-                local_scope.put(&pipe_key, value.clone());
+                let _ = local_scope.put(&pipe_key, value.clone());
             }
             Ok(value)
         }),

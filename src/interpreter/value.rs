@@ -5,6 +5,16 @@ use crate::FlError;
 use crate::interpreter::{Scope, Symbol, FlFunction};
 use crate::list::FlList;
 
+pub struct FlLazy {
+    pub scope: Arc<dyn Scope>,
+}
+
+impl fmt::Debug for FlLazy {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        f.debug_struct("FlLazy").finish_non_exhaustive()
+    }
+}
+
 #[derive(Debug)]
 pub enum Value {
     Nil,
@@ -16,6 +26,7 @@ pub enum Value {
     Map(),      // TODO: implement
     Object(),   // TODO: implement
     Function(Arc<FlFunction>),
+    Lazy(Arc<FlLazy>),
 }
 
 impl Clone for Value {
@@ -30,6 +41,7 @@ impl Clone for Value {
             Self::Map() => Self::Map(),
             Self::Object() => Self::Object(),
             Self::Function(f) => Self::Function(f.clone()),
+            Self::Lazy(l) => Self::Lazy(l.clone()),
         }
     }
 }
@@ -157,17 +169,18 @@ impl fmt::Display for ValueTypes {
 }
 
 impl Value {
-    pub fn as_value_type(&self) -> ValueType {
+    pub fn as_value_type(&self) -> Result<ValueType, FlError> {
         match self {
-            Value::Nil => ValueType::Nil,
-            Value::Integer(_) => ValueType::Integer,
-            Value::Float(_) => ValueType::Float,
-            Value::List(_) => ValueType::List,
-            Value::Symbol(..) => ValueType::Symbol,
-            Value::Text(_) => ValueType::Text,
-            Value::Map() => ValueType::Map,
-            Value::Object() => ValueType::Object,
-            Value::Function(_) => ValueType::Function,
+            Value::Nil => Ok(ValueType::Nil),
+            Value::Integer(_) => Ok(ValueType::Integer),
+            Value::Float(_) => Ok(ValueType::Float),
+            Value::List(_) => Ok(ValueType::List),
+            Value::Symbol(..) => Ok(ValueType::Symbol),
+            Value::Text(_) => Ok(ValueType::Text),
+            Value::Map() => Ok(ValueType::Map),
+            Value::Object() => Ok(ValueType::Object),
+            Value::Function(_) => Ok(ValueType::Function),
+            Value::Lazy(l) => self.evaluate(&l.scope)?.as_value_type(),
         }
     }
 
@@ -276,8 +289,8 @@ impl Value {
             }
             write!(f, "{}", element)?;
         }
-        write!(f, ")")    }
-
+        write!(f, ")")
+    }
 }
 
 impl fmt::Display for Value {
@@ -292,6 +305,7 @@ impl fmt::Display for Value {
             Value::Map() => todo!(),
             Value::Object() => todo!(),
             Value::Function(_function) => todo!(),
+            Value::Lazy(_l) => todo!(),
         }
         Ok(())
     }
@@ -300,7 +314,8 @@ impl fmt::Display for Value {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::interpreter::function::Parameter;
+    use crate::Position;
+use crate::interpreter::function::Parameter;
     use crate::interpreter::scope::MapScope;
 
     fn symbol(name: &str) -> Value {
@@ -339,24 +354,25 @@ mod tests {
 
     #[test]
     fn type_names_the_variant() {
-        assert_eq!(ValueType::Nil, Value::Nil.as_value_type());
-        assert_eq!(ValueType::Integer, Value::Integer(1).as_value_type());
-        assert_eq!(ValueType::Float, Value::Float(1.0).as_value_type());
-        assert_eq!(ValueType::List, Value::List(FlList::empty()).as_value_type());
-        assert_eq!(ValueType::Symbol, symbol("a").as_value_type());
-        assert_eq!(ValueType::Text, Value::Text(Arc::from("t")).as_value_type());
-        assert_eq!(ValueType::Map, Value::Map().as_value_type());
-        assert_eq!(ValueType::Object, Value::Object().as_value_type());
-        let function = FlFunction::new("p", "f", "", vec![], false, Box::new(
+        assert_eq!(Ok(ValueType::Nil), Value::Nil.as_value_type());
+        assert_eq!(Ok(ValueType::Integer), Value::Integer(1).as_value_type());
+        assert_eq!(Ok(ValueType::Float), Value::Float(1.0).as_value_type());
+        assert_eq!(Ok(ValueType::List), Value::List(FlList::empty()).as_value_type());
+        assert_eq!(Ok(ValueType::Symbol), symbol("a").as_value_type());
+        assert_eq!(Ok(ValueType::Text), Value::Text(Arc::from("t")).as_value_type());
+        assert_eq!(Ok(ValueType::Map), Value::Map().as_value_type());
+        assert_eq!(Ok(ValueType::Object), Value::Object().as_value_type());
+        let function = FlFunction::new(Position::anonymous_start(),
+"p", "f", "", vec![], false, Box::new(
             |_scope: &Arc<dyn Scope>, _parameters: &Vec<Value>| Ok(Value::Nil),
         ), Vec::new());
-        assert_eq!(ValueType::Function, Value::Function(Arc::new(function)).as_value_type());
+        assert_eq!(Ok(ValueType::Function), Value::Function(Arc::new(function)).as_value_type());
     }
 
     #[test]
     fn evaluate_symbol_looks_up_value() {
         let scope: Arc<dyn Scope> = Arc::new(MapScope::new("global", None));
-        scope.put("a", Value::Integer(42));
+        let _ = scope.put("a", Value::Integer(42));
 
         assert_eq!(Ok(Value::Integer(42)), symbol("a").evaluate(&scope));
     }
@@ -371,10 +387,10 @@ mod tests {
     #[test]
     fn evaluate_symbol_walks_scope_chain() {
         let global: Arc<dyn Scope> = Arc::new(MapScope::new("global", None));
-        global.put("a", Value::Integer(1));
-        global.put("b", Value::Integer(2));
+        let _ = global.put("a", Value::Integer(1));
+        let _ = global.put("b", Value::Integer(2));
         let local: Arc<dyn Scope> = Arc::new(MapScope::new("local", Some(Arc::clone(&global))));
-        local.put("b", Value::Integer(3));
+        let _ = local.put("b", Value::Integer(3));
 
         assert_eq!(Ok(Value::Integer(1)), symbol("a").evaluate(&local));
         assert_eq!(Ok(Value::Integer(3)), symbol("b").evaluate(&local));
@@ -383,7 +399,7 @@ mod tests {
     #[test]
     fn evaluate_symbol_ignores_comment() {
         let scope: Arc<dyn Scope> = Arc::new(MapScope::new("global", None));
-        scope.put("a", Value::Text(Arc::from("hello")));
+        let _ = scope.put("a", Value::Text(Arc::from("hello")));
         let commented = Value::Symbol(Symbol::new("a", Some("a comment"), None));
 
         assert_eq!(
@@ -396,6 +412,7 @@ mod tests {
         let scope: Arc<dyn Scope> = Arc::new(MapScope::new("global", None));
         // Eager, adds two integers.
         let add = FlFunction::new(
+            Position::anonymous_start(),
             "package",
             "add",
             "adds two integers",
@@ -412,6 +429,7 @@ mod tests {
         );
         // Not eager, returns its argument unevaluated.
         let quote = FlFunction::new(
+            Position::anonymous_start(),
             "package",
             "quote",
             "returns its argument unevaluated",
@@ -419,8 +437,8 @@ mod tests {
             false,
             Box::new(|_scope: &Arc<dyn Scope>, p: &Vec<Value>| Ok(p[0].clone())),
             Vec::new());
-        scope.put("add", Value::Function(Arc::new(add)));
-        scope.put("quote", Value::Function(Arc::new(quote)));
+        let _ = scope.put("add", Value::Function(Arc::new(add)));
+        let _ = scope.put("quote", Value::Function(Arc::new(quote)));
         scope
     }
 
@@ -431,7 +449,7 @@ mod tests {
     #[test]
     fn evaluate_list_calls_function_with_evaluated_parameters() {
         let scope = global_with_functions();
-        scope.put("x", Value::Integer(40));
+        let _ = scope.put("x", Value::Integer(40));
 
         let call = list(vec![symbol("add"), symbol("x"), Value::Integer(2)]);
 
@@ -451,7 +469,7 @@ mod tests {
     #[test]
     fn evaluate_list_does_not_evaluate_non_eager_parameters() {
         let scope = global_with_functions();
-        scope.put("x", Value::Integer(40));
+        let _ = scope.put("x", Value::Integer(40));
 
         let call = list(vec![symbol("quote"), symbol("x")]);
 
