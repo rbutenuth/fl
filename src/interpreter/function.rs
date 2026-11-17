@@ -97,12 +97,25 @@ impl Parameter {
         if self.types.contains(value.as_value_type()?) {
             Ok(())
         } else {
-            Err(FlError::new(format!(
-                "Parameter {} expects {}, but got {:?}",
-                self.name,
-                self.types,
-                value.as_value_type()
-            )))
+            let type_with_error = value.as_value_type();
+            match type_with_error {
+                Ok(value_type) => {
+                    Err(FlError::new(format!(
+                        "Parameter {} expects {}, but got {:?}",
+                        self.name,
+                        self.types,
+                        value_type
+                    )))
+                },
+                Err(error) => {
+                    Err(FlError::new(format!(
+                        "Parameter {} expects {}, but got <error> ({})",
+                        self.name,
+                        self.types,
+                        error.message()
+                    )))
+                },
+            }
         }
     }
 }
