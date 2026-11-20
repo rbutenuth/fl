@@ -1,17 +1,51 @@
 use std::format;
+use std::sync::Mutex;
 use std::{fmt, sync::Arc};
 
 use crate::FlError;
-use crate::interpreter::{Scope, Symbol, FlFunction};
+use crate::interpreter::{FlFunction, Scope, Symbol};
 use crate::list::FlList;
 
-pub struct FlLazy {
+pub struct LazyContent {
     pub scope: Arc<dyn Scope>,
+    lazy: Value,
+    evaluated: Option<Result<Value, FlError>>,
+}
+
+pub struct FlLazy {
+    pub content: Mutex<LazyContent>,
 }
 
 impl fmt::Debug for FlLazy {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         f.debug_struct("FlLazy").finish_non_exhaustive()
+    }
+}
+
+impl FlLazy {
+    pub fn new(scope: Arc<dyn Scope>, lazy: Value) -> Arc<FlLazy> {
+        match lazy {
+            Value::Lazy(l) => l.clone(),
+            _ => Arc::new(FlLazy {
+                content: Mutex::new(LazyContent {
+                    scope,
+                    lazy,
+                    evaluated: Option::None,
+                }),
+            }),
+        }
+    }
+
+    pub fn evaluate(&self) -> Result<Value, FlError> {
+        let mut content = self.content.lock().expect("mutex is poisoned");
+        match &content.evaluated {
+            Some(e) => e.clone(),
+            None => {
+                let result = content.lazy.evaluate(&content.scope.clone());
+                content.evaluated = Some(result.clone());
+                result
+            }
+        }
     }
 }
 
@@ -23,8 +57,8 @@ pub enum Value {
     List(FlList),
     Symbol(Symbol),
     Text(Arc<str>),
-    Map(),      // TODO: implement
-    Object(),   // TODO: implement
+    Map(),    // TODO: implement
+    Object(), // TODO: implement
     Function(Arc<FlFunction>),
     Lazy(Arc<FlLazy>),
 }
@@ -42,21 +76,6 @@ impl Clone for Value {
             Self::Object() => Self::Object(),
             Self::Function(f) => Self::Function(f.clone()),
             Self::Lazy(l) => Self::Lazy(l.clone()),
-        }
-    }
-}
-
-impl PartialEq for Value {
-    fn eq(&self, other: &Self) -> bool {
-        match (self, other) {
-            (Value::Nil, Value::Nil) => true,
-            (Value::Integer(s), Value::Integer(o)) => s == o,
-            (Value::Float(s), Value::Float(o)) => s == o,
-            (Value::Text(s), Value::Text(o)) => s == o,
-            (Value::Symbol(s), Value::Symbol(o )) => s == o,
-            (Value::Function(s), Value::Function(o)) => Arc::ptr_eq(s, o),
-            // TODO: List, etc.
-            _ => false,
         }
     }
 }
@@ -168,7 +187,42 @@ impl fmt::Display for ValueTypes {
     }
 }
 
+/// Does only work for "simple" types: Nil, Integer, Float, Text, Symbol, Function.
+/// All others are always considered as not equal.
+impl PartialEq for Value {
+    fn eq(&self, other: &Self) -> bool {
+        match (self, other) {
+            (Value::Nil, Value::Nil) => true,
+            (Value::Integer(s), Value::Integer(o)) => s == o,
+            (Value::Float(s), Value::Float(o)) => s == o,
+            (Value::Text(s), Value::Text(o)) => s == o,
+            (Value::Symbol(s), Value::Symbol(o)) => s == o,
+            (Value::Function(s), Value::Function(o)) => Arc::ptr_eq(s, o),
+            _ => false,
+        }
+    }
+}
+
 impl Value {
+    pub fn fl_equals(&self, other: &Self) -> Result<Value, FlError> {
+        match (self, other) {
+            (Value::Nil, Value::Nil) => Ok(Value::Integer(1)),
+            (Value::Integer(s), Value::Integer(o)) => {
+                Ok(Value::Integer(if s == o { 1 } else { 0 }))
+            }
+            (Value::Float(s), Value::Float(o)) => Ok(Value::Integer(if s == o { 1 } else { 0 })),
+            (Value::Text(s), Value::Text(o)) => Ok(Value::Integer(if s == o { 1 } else { 0 })),
+            (Value::Symbol(s), Value::Symbol(o)) => Ok(Value::Integer(if s == o { 1 } else { 0 })),
+            (Value::Function(s), Value::Function(o)) => {
+                Ok(Value::Integer(if Arc::ptr_eq(s, o) { 1 } else { 0 }))
+            }
+            (Value::Lazy(s), o) => s.evaluate()?.fl_equals(o),
+            (s, Value::Lazy(o)) => s.fl_equals(&o.evaluate()?),
+            // TODO: List, etc.
+            _ => Ok(Value::Integer(0)),
+        }
+    }
+
     pub fn as_value_type(&self) -> Result<ValueType, FlError> {
         match self {
             Value::Nil => Ok(ValueType::Nil),
@@ -180,42 +234,42 @@ impl Value {
             Value::Map() => Ok(ValueType::Map),
             Value::Object() => Ok(ValueType::Object),
             Value::Function(_) => Ok(ValueType::Function),
-            Value::Lazy(l) => self.evaluate(&l.scope)?.as_value_type(),
+            Value::Lazy(l) => l.evaluate()?.as_value_type(),
         }
     }
 
     pub fn as_integer(&self) -> Result<i64, FlError> {
         match self {
             Value::Integer(i) => Ok(*i),
-            _ => Err(FlError::new(format!("Not an integer: {:?}", self)))
+            _ => Err(FlError::new(format!("Not an integer: {:?}", self))),
         }
     }
 
     pub fn as_float(&self) -> Result<f64, FlError> {
         match self {
             Value::Float(f) => Ok(*f),
-            _ => Err(FlError::new(format!("Not a float: {:?}", self)))
+            _ => Err(FlError::new(format!("Not a float: {:?}", self))),
         }
     }
 
     pub fn as_list(&self) -> Result<FlList, FlError> {
         match self {
             Value::List(l) => Ok(l.clone()),
-            _ => Err(FlError::new(format!("Not a list: {:?}", self)))
+            _ => Err(FlError::new(format!("Not a list: {:?}", self))),
         }
     }
 
     pub fn as_symbol(&self) -> Result<Symbol, FlError> {
         match self {
             Value::Symbol(s) => Ok(s.clone()),
-            _ => Err(FlError::new(format!("Not a symbol: {:?}", self)))
+            _ => Err(FlError::new(format!("Not a symbol: {:?}", self))),
         }
     }
 
     pub fn as_text(&self) -> Result<Arc<str>, FlError> {
         match self {
             Value::Text(t) => Ok(t.clone()),
-            _ => Err(FlError::new(format!("Not a string: {:?}", self)))
+            _ => Err(FlError::new(format!("Not a string: {:?}", self))),
         }
     }
 
@@ -224,7 +278,7 @@ impl Value {
     pub fn as_function(&self) -> Result<Arc<FlFunction>, FlError> {
         match self {
             Value::Function(f) => Ok(f.clone()),
-            _ => Err(FlError::new(format!("Not a function: {:?}", self)))
+            _ => Err(FlError::new(format!("Not a function: {:?}", self))),
         }
     }
 
@@ -235,7 +289,7 @@ impl Value {
             Value::Map() => todo!(),
             Value::Object() => todo!(),
             // Nil, Integer, Float, Text, Function: just clone
-            _ => Ok(self.clone())
+            _ => Ok(self.clone()),
         }
     }
 
@@ -252,9 +306,9 @@ impl Value {
 
         let position = match first.clone() {
             Value::Symbol(s) => s.position().cloned(),
-            _ =>  None,
+            _ => None,
         };
-        
+
         match first.evaluate(scope)? {
             Value::Function(function) => function
                 .evaluate_arguments_and_call(scope, elements.collect())
@@ -263,8 +317,7 @@ impl Value {
                     // The error already has a position (from a deeper call): add this call
                     // as a new error and keep the inner one as source.
                     Some(position) => {
-                        FlError::with_source(error.message.clone(), error)
-                            .with_position(position)
+                        FlError::with_source(error.message.clone(), error).with_position(position)
                     }
                     None => error,
                 }),
@@ -315,7 +368,7 @@ impl fmt::Display for Value {
 mod tests {
     use super::*;
     use crate::Position;
-use crate::interpreter::function::Parameter;
+    use crate::interpreter::function::Parameter;
     use crate::interpreter::scope::MapScope;
 
     fn symbol(name: &str) -> Value {
@@ -357,21 +410,36 @@ use crate::interpreter::function::Parameter;
         assert_eq!(Ok(ValueType::Nil), Value::Nil.as_value_type());
         assert_eq!(Ok(ValueType::Integer), Value::Integer(1).as_value_type());
         assert_eq!(Ok(ValueType::Float), Value::Float(1.0).as_value_type());
-        assert_eq!(Ok(ValueType::List), Value::List(FlList::empty()).as_value_type());
+        assert_eq!(
+            Ok(ValueType::List),
+            Value::List(FlList::empty()).as_value_type()
+        );
         assert_eq!(Ok(ValueType::Symbol), symbol("a").as_value_type());
-        assert_eq!(Ok(ValueType::Text), Value::Text(Arc::from("t")).as_value_type());
+        assert_eq!(
+            Ok(ValueType::Text),
+            Value::Text(Arc::from("t")).as_value_type()
+        );
         assert_eq!(Ok(ValueType::Map), Value::Map().as_value_type());
         assert_eq!(Ok(ValueType::Object), Value::Object().as_value_type());
-        let function = FlFunction::new(Position::anonymous_start(),
-"p", "f", "", vec![], false, Box::new(
-            |_scope: &Arc<dyn Scope>, _parameters: &Vec<Value>| Ok(Value::Nil),
-        ), Vec::new());
-        assert_eq!(Ok(ValueType::Function), Value::Function(Arc::new(function)).as_value_type());
+        let function = FlFunction::new(
+            Position::anonymous_start(),
+            "p",
+            "f",
+            "",
+            vec![],
+            false,
+            Box::new(|_scope: &Arc<dyn Scope>, _parameters: &Vec<Value>| Ok(Value::Nil)),
+            Vec::new(),
+        );
+        assert_eq!(
+            Ok(ValueType::Function),
+            Value::Function(Arc::new(function)).as_value_type()
+        );
     }
 
     #[test]
     fn evaluate_symbol_looks_up_value() {
-        let scope: Arc<dyn Scope> = Arc::new(MapScope::new("global", None));
+        let scope: Arc<dyn Scope> = Arc::new(MapScope::new(None));
         let _ = scope.put("a", Value::Integer(42));
 
         assert_eq!(Ok(Value::Integer(42)), symbol("a").evaluate(&scope));
@@ -379,17 +447,17 @@ use crate::interpreter::function::Parameter;
 
     #[test]
     fn evaluate_unbound_symbol_is_nil() {
-        let scope: Arc<dyn Scope> = Arc::new(MapScope::new("global", None));
+        let scope: Arc<dyn Scope> = Arc::new(MapScope::new(None));
 
         assert_eq!(Ok(Value::Nil), symbol("unknown").evaluate(&scope));
     }
 
     #[test]
     fn evaluate_symbol_walks_scope_chain() {
-        let global: Arc<dyn Scope> = Arc::new(MapScope::new("global", None));
+        let global: Arc<dyn Scope> = Arc::new(MapScope::new(None));
         let _ = global.put("a", Value::Integer(1));
         let _ = global.put("b", Value::Integer(2));
-        let local: Arc<dyn Scope> = Arc::new(MapScope::new("local", Some(Arc::clone(&global))));
+        let local: Arc<dyn Scope> = Arc::new(MapScope::new(Some(Arc::clone(&global))));
         let _ = local.put("b", Value::Integer(3));
 
         assert_eq!(Ok(Value::Integer(1)), symbol("a").evaluate(&local));
@@ -398,7 +466,7 @@ use crate::interpreter::function::Parameter;
 
     #[test]
     fn evaluate_symbol_ignores_comment() {
-        let scope: Arc<dyn Scope> = Arc::new(MapScope::new("global", None));
+        let scope: Arc<dyn Scope> = Arc::new(MapScope::new(None));
         let _ = scope.put("a", Value::Text(Arc::from("hello")));
         let commented = Value::Symbol(Symbol::new("a", Some("a comment"), None));
 
@@ -409,7 +477,7 @@ use crate::interpreter::function::Parameter;
     }
 
     fn global_with_functions() -> Arc<dyn Scope> {
-        let scope: Arc<dyn Scope> = Arc::new(MapScope::new("global", None));
+        let scope: Arc<dyn Scope> = Arc::new(MapScope::new(None));
         // Eager, adds two integers.
         let add = FlFunction::new(
             Position::anonymous_start(),
@@ -421,11 +489,13 @@ use crate::interpreter::function::Parameter;
                 Parameter::new("b", "", ValueType::Integer, true),
             ],
             false,
-            Box::new(|_scope: &Arc<dyn Scope>, p: &Vec<Value>| match (&p[0], &p[1]) {
-                (Value::Integer(a), Value::Integer(b)) => Ok(Value::Integer(a + b)),
-                _ => Err(FlError::new("not integers")),
-            }),
-            Vec::new()
+            Box::new(
+                |_scope: &Arc<dyn Scope>, p: &Vec<Value>| match (&p[0], &p[1]) {
+                    (Value::Integer(a), Value::Integer(b)) => Ok(Value::Integer(a + b)),
+                    _ => Err(FlError::new("not integers")),
+                },
+            ),
+            Vec::new(),
         );
         // Not eager, returns its argument unevaluated.
         let quote = FlFunction::new(
@@ -436,7 +506,8 @@ use crate::interpreter::function::Parameter;
             vec![Parameter::new("a", "", ValueTypes::ALL, false)],
             false,
             Box::new(|_scope: &Arc<dyn Scope>, p: &Vec<Value>| Ok(p[0].clone())),
-            Vec::new());
+            Vec::new(),
+        );
         let _ = scope.put("add", Value::Function(Arc::new(add)));
         let _ = scope.put("quote", Value::Function(Arc::new(quote)));
         scope
@@ -487,7 +558,11 @@ use crate::interpreter::function::Parameter;
     fn evaluate_list_with_non_function_first_is_error() {
         let scope = global_with_functions();
 
-        assert!(list(vec![Value::Integer(1), Value::Integer(2)]).evaluate(&scope).is_err());
+        assert!(
+            list(vec![Value::Integer(1), Value::Integer(2)])
+                .evaluate(&scope)
+                .is_err()
+        );
         assert!(list(vec![symbol("unbound")]).evaluate(&scope).is_err());
     }
 
@@ -495,7 +570,11 @@ use crate::interpreter::function::Parameter;
     fn evaluate_list_with_wrong_parameter_type_is_error() {
         let scope = global_with_functions();
 
-        let call = list(vec![symbol("add"), Value::Text(Arc::from("a")), Value::Integer(2)]);
+        let call = list(vec![
+            symbol("add"),
+            Value::Text(Arc::from("a")),
+            Value::Integer(2),
+        ]);
 
         assert!(call.evaluate(&scope).is_err());
     }

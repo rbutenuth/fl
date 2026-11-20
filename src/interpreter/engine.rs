@@ -14,7 +14,7 @@ pub struct Engine {
 
 impl Engine {
     pub fn new() -> Engine {
-        let global = Arc::new(MapScope::new("global", None));
+        let global = Arc::new(MapScope::new(None));
 
         FlFunction::put_in_scope(
             &*global,
@@ -66,7 +66,7 @@ impl Engine {
             Value::Map() => todo!(),
             Value::Object() => todo!(),
             Value::Function(_fl_function) => Ok(true),
-            Value::Lazy(l) => Self::evaluate_to_boolean(&p.evaluate(&l.scope)?),
+            Value::Lazy(l) => Self::evaluate_to_boolean(&l.evaluate()?),
         }
     }
 }

@@ -318,7 +318,7 @@ mod tests {
 
     #[test]
     fn new_and_call() {
-        let scope: Arc<dyn Scope> = Arc::new(MapScope::new("global", None));
+        let scope: Arc<dyn Scope> = Arc::new(MapScope::new(None));
 
         let result = function(false).call(&scope, vec![Value::Integer(7)]);
 
@@ -327,7 +327,7 @@ mod tests {
 
     #[test]
     fn too_many_parameters_without_vararg_is_error() {
-        let scope: Arc<dyn Scope> = Arc::new(MapScope::new("global", None));
+        let scope: Arc<dyn Scope> = Arc::new(MapScope::new(None));
 
         let result = function(false).call(&scope, vec![Value::Integer(1), Value::Integer(2)]);
 
@@ -336,7 +336,7 @@ mod tests {
 
     #[test]
     fn too_many_parameters_with_vararg_is_ok() {
-        let scope: Arc<dyn Scope> = Arc::new(MapScope::new("global", None));
+        let scope: Arc<dyn Scope> = Arc::new(MapScope::new(None));
 
         let result = function(true).call(&scope, vec![Value::Integer(1), Value::Integer(2)]);
 
@@ -345,7 +345,7 @@ mod tests {
 
     #[test]
     fn closure_as_callable_doubles_numbers() {
-        let scope: Arc<dyn Scope> = Arc::new(MapScope::new("global", None));
+        let scope: Arc<dyn Scope> = Arc::new(MapScope::new(None));
         let multiply_by_2 = FlFunction::new(
             Position::anonymous_start(),
             "some package",
@@ -374,7 +374,7 @@ mod tests {
 
     #[test]
     fn evaluate_to_integer_accepts_integers_and_symbols_bound_to_integers() {
-        let scope: Arc<dyn Scope> = Arc::new(MapScope::new("global", None));
+        let scope: Arc<dyn Scope> = Arc::new(MapScope::new(None));
         let _ = scope.put("a", Value::Integer(5));
 
         assert_eq!(Ok(7), evaluate_to_integer(&scope, Value::Integer(7)));
@@ -386,7 +386,7 @@ mod tests {
 
     #[test]
     fn evaluate_to_integer_rejects_other_values() {
-        let scope: Arc<dyn Scope> = Arc::new(MapScope::new("global", None));
+        let scope: Arc<dyn Scope> = Arc::new(MapScope::new(None));
 
         assert!(evaluate_to_integer(&scope, Value::Float(1.0)).is_err());
         assert!(evaluate_to_integer(&scope, Value::Nil).is_err());
@@ -394,7 +394,7 @@ mod tests {
 
     #[test]
     fn parameter_types_are_checked_before_the_callable_runs() {
-        let scope: Arc<dyn Scope> = Arc::new(MapScope::new("global", None));
+        let scope: Arc<dyn Scope> = Arc::new(MapScope::new(None));
         let text_only = FlFunction::new(
             Position::anonymous_start(),
             "some package",
@@ -418,7 +418,7 @@ mod tests {
 
     #[test]
     fn vararg_parameters_beyond_declared_ones_are_not_checked() {
-        let scope: Arc<dyn Scope> = Arc::new(MapScope::new("global", None));
+        let scope: Arc<dyn Scope> = Arc::new(MapScope::new(None));
         let function = FlFunction::new(
             Position::anonymous_start(),
             "p",

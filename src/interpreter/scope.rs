@@ -14,9 +14,6 @@ pub trait Scope: Send + Sync {
     /// Get next Scope in chain (if there is a next).
     fn get_next(&self) -> Option<Arc<dyn Scope>>;
 
-    /// Name of this Scope
-    fn get_name(&self) -> String;
-
     /// Lookup a symbol, if not found in this scope, walk chain of scopes.
     /// Returns Value::Nil if key is not found in the whole chain.
     fn get(&self, key: &str) -> Value;
@@ -58,15 +55,13 @@ pub trait Scope: Send + Sync {
 /// so all Scope methods work with a shared reference and the scope can be shared via Arc.
 /// Value::Nil is never stored in the map.
 pub struct MapScope {
-    name: String,
     next: Option<Arc<dyn Scope>>,
     map: RwLock<HashMap<String, Value>>,
 }
 
 impl MapScope {
-    pub fn new(name: impl Into<String>, next: Option<Arc<dyn Scope>>) -> Self {
+    pub fn new(next: Option<Arc<dyn Scope>>) -> Self {
         MapScope {
-            name: name.into(),
             next,
             map: RwLock::new(HashMap::new()),
         }
@@ -95,10 +90,6 @@ impl Scope for MapScope {
 
     fn get_next(&self) -> Option<Arc<dyn Scope>> {
         self.next.clone()
-    }
-
-    fn get_name(&self) -> String {
-        self.name.clone()
     }
 
     fn get(&self, key: &str) -> Value {
@@ -139,7 +130,7 @@ impl Scope for MapScope {
     fn define(&self, key: &str, value: Value) -> Result<Value, FlError> {
         let mut map = self.map.write().expect("scope lock poisoned");
         if map.contains_key(key) {
-            return Err(FlError::new(format!("\"{}\" is already defined in scope \"{}\"", key, self.name)));
+            return Err(FlError::new(format!("\"{}\" is already defined in scope", key)));
         }
         if !matches!(value, Value::Nil) {
             map.insert(String::from(key), value.clone());
@@ -166,15 +157,14 @@ pub mod tests {
 
     #[test]
     fn create() {
-        let scope = MapScope::new("global", None);
-        assert_eq!("global", scope.get_name());
+        let scope = MapScope::new(None);
         assert!(scope.get_next().is_none());
         assert_eq!(Value::Nil, scope.get("a"));
     }
 
     #[test]
     fn put_and_get() {
-        let scope = MapScope::new("global", None);
+        let scope = MapScope::new(None);
         assert_eq!(Value::Nil, scope.put("a", int(1)).unwrap());
         assert_eq!(int(1), scope.get("a"));
         assert_eq!(int(1), scope.put("a", int(2)).unwrap());
@@ -183,7 +173,7 @@ pub mod tests {
 
     #[test]
     fn put_nil_removes() {
-        let scope = MapScope::new("global", None);
+        let scope = MapScope::new(None);
         let _ = scope.put("a", int(1));
         assert_eq!(int(1), scope.put("a", Value::Nil).unwrap());
         assert_eq!(Value::Nil, scope.get("a"));
@@ -192,24 +182,23 @@ pub mod tests {
 
     #[test]
     fn get_walks_chain() {
-        let global = Arc::new(MapScope::new("global", None));
+        let global = Arc::new(MapScope::new(None));
         let _ = global.put("a", int(1));
         let _ = global.put("b", int(2));
-        let local = MapScope::new("local", Some(global.clone()));
+        let local = MapScope::new(Some(global.clone()));
         let _ = local.put("b", int(3));
 
         assert_eq!(int(1), local.get("a"));
         assert_eq!(int(3), local.get("b"));
         assert_eq!(int(2), global.get("b"));
         assert_eq!(Value::Nil, local.get("c"));
-        assert_eq!("global", local.get_next().unwrap().get_name());
     }
 
     #[test]
     fn replace_walks_chain() {
-        let global = Arc::new(MapScope::new("global", None));
+        let global = Arc::new(MapScope::new(None));
         let _ = global.put("a", int(1));
-        let local = MapScope::new("local", Some(global.clone()));
+        let local = MapScope::new(Some(global.clone()));
 
         assert_eq!(Ok(int(1)), local.replace("a", int(2)));
         assert_eq!(int(2), global.get("a"));
@@ -218,9 +207,9 @@ pub mod tests {
 
     #[test]
     fn replace_prefers_local() {
-        let global = Arc::new(MapScope::new("global", None));
+        let global = Arc::new(MapScope::new(None));
         let _ = global.put("a", int(1));
-        let local = MapScope::new("local", Some(global.clone()));
+        let local = MapScope::new(Some(global.clone()));
         let _ = local.put("a", int(2));
 
         assert_eq!(Ok(int(2)), local.replace("a", int(3)));
@@ -230,15 +219,15 @@ pub mod tests {
 
     #[test]
     fn replace_missing_is_error() {
-        let global = Arc::new(MapScope::new("global", None));
-        let local = MapScope::new("local", Some(global));
+        let global = Arc::new(MapScope::new(None));
+        let local = MapScope::new(Some(global));
         assert!(local.replace("a", int(1)).is_err());
         assert_eq!(Value::Nil, local.get("a"));
     }
 
     #[test]
     fn replace_nil_removes() {
-        let scope = MapScope::new("global", None);
+        let scope = MapScope::new(None);
         let _ = scope.put("a", int(1));
         assert_eq!(Ok(int(1)), scope.replace("a", Value::Nil));
         assert_eq!(Value::Nil, scope.get("a"));
@@ -246,9 +235,9 @@ pub mod tests {
 
     #[test]
     fn replace_local_does_not_walk_chain() {
-        let global = Arc::new(MapScope::new("global", None));
+        let global = Arc::new(MapScope::new(None));
         let _ = global.put("a", int(1));
-        let local = MapScope::new("local", Some(global.clone()));
+        let local = MapScope::new(Some(global.clone()));
 
         assert!(local.replace_local("a", int(2)).is_err());
         assert_eq!(int(1), global.get("a"));
@@ -260,9 +249,9 @@ pub mod tests {
 
     #[test]
     fn define() {
-        let global = Arc::new(MapScope::new("global", None));
+        let global = Arc::new(MapScope::new(None));
         let _ = global.put("a", int(1));
-        let local = MapScope::new("local", Some(global.clone()));
+        let local = MapScope::new(Some(global.clone()));
 
         // Shadowing a mapping of an outer scope is allowed.
         assert_eq!(Ok(int(2)), local.define("a", int(2)));
@@ -276,9 +265,9 @@ pub mod tests {
 
     #[test]
     fn entries() {
-        let global = Arc::new(MapScope::new("global", None));
+        let global = Arc::new(MapScope::new(None));
         let _ = global.put("x", int(9));
-        let local = MapScope::new("local", Some(global.clone()));
+        let local = MapScope::new(Some(global.clone()));
         assert!(local.entries().is_empty());
 
         let _ = local.put("a", int(1));
@@ -290,7 +279,7 @@ pub mod tests {
 
     #[test]
     fn shared_between_threads() {
-        let scope = Arc::new(MapScope::new("global", None));
+        let scope = Arc::new(MapScope::new(None));
         let handles: Vec<_> = (0..8)
             .map(|i| {
                 let scope = scope.clone();

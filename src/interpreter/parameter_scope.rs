@@ -12,13 +12,12 @@ pub struct ParameterScope {
 
 impl ParameterScope {
     pub fn new(
-        name: impl Into<String>,
         next: Option<Arc<dyn Scope>>,
         name_to_index: Arc<HashMap<String, usize>>,
         parameters: Vec<Value>
     ) -> Self {
         ParameterScope {
-            map_scope: MapScope::new(name, next),
+            map_scope: MapScope::new(next),
             name_to_index,
             parameters,
         }
@@ -28,10 +27,6 @@ impl ParameterScope {
 impl Scope for ParameterScope {
     fn get_next(&self) -> Option<Arc<dyn Scope>> {
         self.map_scope.get_next()
-    }
-
-    fn get_name(&self) -> String {
-        self.map_scope.get_name()
     }
 
     fn get(&self, key: &str) -> Value {

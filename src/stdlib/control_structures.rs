@@ -140,7 +140,7 @@ pub fn add_control_structures_functions(scope: &dyn Scope) {
         true,
         Box::new(|scope: &Arc<dyn Scope>, p: &Vec<Value>| {
             let local_scope: Arc<dyn Scope> =
-                Arc::new(MapScope::new("scope", Some(Arc::clone(scope))));
+                Arc::new(MapScope::new(Some(Arc::clone(scope))));
             let mut value = Value::Nil;
             for expression in p {
                 value = expression.evaluate(&local_scope)?;
@@ -173,7 +173,7 @@ pub fn add_control_structures_functions(scope: &dyn Scope) {
                 other => return Err(FlError::new(format!("Not a symbol: {:?}", other))),
             };
             let local_scope: Arc<dyn Scope> =
-                Arc::new(MapScope::new("pipeline", Some(Arc::clone(scope))));
+                Arc::new(MapScope::new(Some(Arc::clone(scope))));
             let mut value = Value::Nil;
             for expression in &p[1..] {
                 value = expression.evaluate(&local_scope)?;
