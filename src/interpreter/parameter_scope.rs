@@ -14,7 +14,7 @@ impl ParameterScope {
     pub fn new(
         next: Option<Arc<dyn Scope>>,
         name_to_index: Arc<HashMap<String, usize>>,
-        parameters: Vec<Value>
+        parameters: Vec<Value>,
     ) -> Self {
         ParameterScope {
             map_scope: MapScope::new(next),
@@ -29,6 +29,10 @@ impl Scope for ParameterScope {
         self.map_scope.get_next()
     }
 
+    fn get_parameter_scope(&self) -> Option<&ParameterScope> {
+        Some(self)
+    }
+
     fn get(&self, key: &str) -> Value {
         match self.name_to_index.get(key) {
             Some(&index) => self.parameters[index].clone(),
@@ -38,28 +42,40 @@ impl Scope for ParameterScope {
 
     fn put(&self, key: &str, value: Value) -> Result<Value, FlError> {
         match self.name_to_index.get(key) {
-            Some(_) => Err(FlError::new(format!("can't change parameter value {}", key))),
+            Some(_) => Err(FlError::new(format!(
+                "can't change parameter value {}",
+                key
+            ))),
             None => self.map_scope.put(key, value),
         }
     }
 
     fn replace(&self, key: &str, new_value: Value) -> Result<Value, FlError> {
         match self.name_to_index.get(key) {
-            Some(_) => Err(FlError::new(format!("can't change parameter value {}", key))),
+            Some(_) => Err(FlError::new(format!(
+                "can't change parameter value {}",
+                key
+            ))),
             None => self.map_scope.replace(key, new_value),
         }
     }
 
     fn replace_local(&self, key: &str, new_value: Value) -> Result<Value, FlError> {
         match self.name_to_index.get(key) {
-            Some(_) => Err(FlError::new(format!("can't change parameter value {}", key))),
-            None => self.map_scope.replace(key, new_value),
+            Some(_) => Err(FlError::new(format!(
+                "can't change parameter value {}",
+                key
+            ))),
+            None => self.map_scope.replace_local(key, new_value),
         }
     }
 
     fn define(&self, key: &str, value: Value) -> Result<Value, FlError> {
         match self.name_to_index.get(key) {
-            Some(_) => Err(FlError::new(format!("can't change parameter value {}", key))),
+            Some(_) => Err(FlError::new(format!(
+                "can't change parameter value {}",
+                key
+            ))),
             None => self.map_scope.define(key, value),
         }
     }

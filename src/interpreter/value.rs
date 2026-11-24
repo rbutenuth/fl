@@ -3,6 +3,7 @@ use std::sync::Mutex;
 use std::{fmt, sync::Arc};
 
 use crate::FlError;
+use crate::interpreter::lambda::ParameterPlaceholder;
 use crate::interpreter::{FlFunction, Scope, Symbol};
 use crate::list::FlList;
 
@@ -61,6 +62,7 @@ pub enum Value {
     Object(), // TODO: implement
     Function(Arc<FlFunction>),
     Lazy(Arc<FlLazy>),
+    Parameter(Arc<ParameterPlaceholder>),
 }
 
 impl Clone for Value {
@@ -76,6 +78,7 @@ impl Clone for Value {
             Self::Object() => Self::Object(),
             Self::Function(f) => Self::Function(f.clone()),
             Self::Lazy(l) => Self::Lazy(l.clone()),
+            Self::Parameter(p) => Self::Parameter(p.clone()),
         }
     }
 }
@@ -207,17 +210,19 @@ impl Value {
     pub fn fl_equals(&self, other: &Self) -> Result<Value, FlError> {
         match (self, other) {
             (Value::Nil, Value::Nil) => Ok(Value::Integer(1)),
-            (Value::Integer(s), Value::Integer(o)) => {
-                Ok(Value::Integer(if s == o { 1 } else { 0 }))
+            (Value::Integer(left), Value::Integer(right)) => {
+                Ok(Value::Integer(if left == right { 1 } else { 0 }))
             }
-            (Value::Float(s), Value::Float(o)) => Ok(Value::Integer(if s == o { 1 } else { 0 })),
-            (Value::Text(s), Value::Text(o)) => Ok(Value::Integer(if s == o { 1 } else { 0 })),
-            (Value::Symbol(s), Value::Symbol(o)) => Ok(Value::Integer(if s == o { 1 } else { 0 })),
-            (Value::Function(s), Value::Function(o)) => {
-                Ok(Value::Integer(if Arc::ptr_eq(s, o) { 1 } else { 0 }))
+            (Value::Float(left), Value::Float(right)) => Ok(Value::Integer(if left == right { 1 } else { 0 })),
+            (Value::Text(left), Value::Text(right)) => Ok(Value::Integer(if left == right { 1 } else { 0 })),
+            (Value::Symbol(left), Value::Symbol(right)) => Ok(Value::Integer(if left == right { 1 } else { 0 })),
+            (Value::Function(left), Value::Function(right)) => {
+                Ok(Value::Integer(if Arc::ptr_eq(left, right) { 1 } else { 0 }))
             }
-            (Value::Lazy(s), o) => s.evaluate()?.fl_equals(o),
-            (s, Value::Lazy(o)) => s.fl_equals(&o.evaluate()?),
+            (Value::Lazy(left), right) => left.evaluate()?.fl_equals(right),
+            (left, Value::Lazy(right)) => left.fl_equals(&right.evaluate()?),
+            (Value::Parameter(left), right) => left.evaluate()?.fl_equals(right),
+            (left, Value::Parameter(right)) => left.fl_equals(&right.evaluate()?),
             // TODO: List, etc.
             _ => Ok(Value::Integer(0)),
         }
@@ -235,6 +240,7 @@ impl Value {
             Value::Object() => Ok(ValueType::Object),
             Value::Function(_) => Ok(ValueType::Function),
             Value::Lazy(l) => l.evaluate()?.as_value_type(),
+            Value::Parameter(p) => p.evaluate()?.as_value_type(),
         }
     }
 
@@ -359,6 +365,7 @@ impl fmt::Display for Value {
             Value::Object() => todo!(),
             Value::Function(_function) => todo!(),
             Value::Lazy(_l) => todo!(),
+            Value::Parameter(_p) => todo!(),
         }
         Ok(())
     }

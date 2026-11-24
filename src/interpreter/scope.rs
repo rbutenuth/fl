@@ -1,5 +1,6 @@
 use std::collections::HashMap;
 use std::sync::{Arc, RwLock};
+use crate::interpreter::parameter_scope::ParameterScope;
 use crate::{FlError, Value};
 
 /// A key value mapping of a scope, as returned by [`Scope::entries`].
@@ -13,6 +14,9 @@ pub trait Scope: Send + Sync {
 
     /// Get next Scope in chain (if there is a next).
     fn get_next(&self) -> Option<Arc<dyn Scope>>;
+
+    /// If this is a ParameterScope, return it. Otherwise search the chain up.
+    fn get_parameter_scope(&self) -> Option<&ParameterScope>;
 
     /// Lookup a symbol, if not found in this scope, walk chain of scopes.
     /// Returns Value::Nil if key is not found in the whole chain.
@@ -90,6 +94,10 @@ impl Scope for MapScope {
 
     fn get_next(&self) -> Option<Arc<dyn Scope>> {
         self.next.clone()
+    }
+
+    fn get_parameter_scope(&self) -> Option<&ParameterScope> {
+        self.next.as_ref()?.get_parameter_scope()
     }
 
     fn get(&self, key: &str) -> Value {

@@ -67,6 +67,7 @@ impl Engine {
             Value::Object() => todo!(),
             Value::Function(_fl_function) => Ok(true),
             Value::Lazy(l) => Self::evaluate_to_boolean(&l.evaluate()?),
+            Value::Parameter(p) => Self::evaluate_to_boolean(&p.evaluate()?),
         }
     }
 }

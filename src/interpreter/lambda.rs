@@ -1,9 +1,26 @@
 use crate::interpreter::function::{Callable, Parameter, Sample};
 use crate::interpreter::scope::MapScope;
-use crate::interpreter::{FlFunction, Scope};
+use crate::interpreter::{FlFunction, Scope, Symbol};
+use crate::list::FlList;
 use crate::{FlError, Position, Value};
 use std::collections::HashMap;
 use std::sync::Arc;
+
+#[derive(Debug)]
+pub struct ParameterPlaceholder {
+    pub symbol: Symbol,
+    pub index: usize,
+}
+
+impl ParameterPlaceholder {
+    pub fn new(symbol: Symbol, index: usize) -> Self {
+        ParameterPlaceholder { symbol, index }
+    }
+
+    pub fn evaluate(&self) -> Result<Value, FlError> {
+        Err(FlError::new("todo"))
+    }
+}
 
 /// Body + defining scope of a function created at runtime.
 pub struct LambdaCallable {
@@ -29,6 +46,34 @@ impl Callable for LambdaCallable {
     }
 }
 
+fn compile_all(code: &[Value], name_to_index: &HashMap<String, usize>) -> Vec<Value> {
+    code.iter().map(|v| compile(v, name_to_index)).collect()
+}
+
+/// Replace every symbol that names a parameter by a `Value::Parameter` with the
+/// parameter's index. Lists are compiled recursively. A `Parameter` of an outer
+/// function is re-bound: if the name is a parameter here, it gets the new index,
+/// otherwise it is turned back into its symbol.
+fn compile(code: &Value, name_to_index: &HashMap<String, usize>) -> Value {
+    match code {
+        Value::List(list) => {
+            let elements: Vec<Value> = list.into_iter().map(|v| compile(&v, name_to_index)).collect();
+            Value::List(FlList::from_vec_values(elements))
+        }
+        Value::Symbol(s) => match name_to_index.get(s.name()) {
+            Some(&index) => Value::Parameter(Arc::new(ParameterPlaceholder::new(s.clone(), index))),
+            None => code.clone(),
+        },
+        Value::Parameter(p) => match name_to_index.get(p.symbol.name()) {
+            Some(&index) => {
+                Value::Parameter(Arc::new(ParameterPlaceholder::new(p.symbol.clone(), index)))
+            }
+            None => Value::Symbol(p.symbol.clone()),
+        },
+        _ => code.clone(),
+    }
+}
+
 fn lambda(scope: &Arc<dyn Scope>, p: &Vec<Value>) -> Result<Value, FlError> {
     let list = p[0].as_list()?;
     let mut names: Vec<String> = Vec::new();
@@ -36,8 +81,11 @@ fn lambda(scope: &Arc<dyn Scope>, p: &Vec<Value>) -> Result<Value, FlError> {
     let mut parameters = Vec::new();
     let mut is_vararg = false;
     let mut position = Position::anonymous_start();
+    // TODO: When we call lambda within a function and a parameter name of the outer
+    // function clashes with a parameter name of the lambda, then we have a Parameter
+    // instead of a symbol. In this case, extract the String from Parameter.
     for (i, v) in list.into_iter().enumerate() {
-        let symbol = v.as_symbol()?;
+        let symbol = v.as_symbol()?; // <- here
         if i == 0 {
             if let Some(pos) = symbol.position() {
                 position = pos.clone();
@@ -67,7 +115,7 @@ fn lambda(scope: &Arc<dyn Scope>, p: &Vec<Value>) -> Result<Value, FlError> {
     }
     let callable = LambdaCallable {
         param_names: names,
-        code: p[1..].to_vec(),
+        code: compile_all(&p[1..], &name_to_index),
         defining_scope: Arc::clone(scope),
     };
     Ok(Value::Function(Arc::new(FlFunction::new(
