@@ -81,11 +81,14 @@ fn lambda(scope: &Arc<dyn Scope>, p: &Vec<Value>) -> Result<Value, FlError> {
     let mut parameters = Vec::new();
     let mut is_vararg = false;
     let mut position = Position::anonymous_start();
-    // TODO: When we call lambda within a function and a parameter name of the outer
-    // function clashes with a parameter name of the lambda, then we have a Parameter
-    // instead of a symbol. In this case, extract the String from Parameter.
     for (i, v) in list.into_iter().enumerate() {
-        let symbol = v.as_symbol()?; // <- here
+        // When lambda is called within a function and a parameter name of the outer
+        // function clashes with a parameter name of the lambda, the outer function's
+        // compilation has turned the symbol into a Parameter: use its symbol.
+        let symbol = match &v {
+            Value::Parameter(p) => p.symbol.clone(),
+            _ => v.as_symbol()?,
+        };
         if i == 0 {
             if let Some(pos) = symbol.position() {
                 position = pos.clone();
