@@ -121,7 +121,8 @@ mod tests {
                 let mut results = engine.evaluate_string(sample.expression.as_str());
                 if results.len() != 1 {
                     failures.push(format!(
-                        "{}: \"{}\" returned {} results instead of one",
+                        "{}: {}: \"{}\" returned {} results instead of one",
+                        sample.position,
                         name,
                         sample.expression,
                         results.len()
@@ -134,12 +135,12 @@ mod tests {
                     match result {
                         Err(e) if e == FlError::new_with_id(expected_message, expected_id) => {}
                         Err(e) => failures.push(format!(
-                            "{}: \"{}\" failed with \"{}\", expected error \"{}\"",
-                            name, sample.expression, e, expected_message
+                            "{}: {}: \"{}\" failed with \"{}\", expected error \"{}\"",
+                            sample.position, name, sample.expression, e, expected_message
                         )),
                         Ok(value) => failures.push(format!(
-                            "{}: \"{}\" yields \"{}\", expected error \"{}\"",
-                            name, sample.expression, value, expected_message
+                            "{}: {}: \"{}\" yields \"{}\", expected error \"{}\"",
+                            sample.position, name, sample.expression, value, expected_message
                         )),
                     }
                     continue;
@@ -147,12 +148,12 @@ mod tests {
                 match result {
                     Ok(value) if value.to_string() == sample.yields => {}
                     Ok(value) => failures.push(format!(
-                        "{}: \"{}\" yields \"{}\", expected \"{}\"",
-                        name, sample.expression, value, sample.yields
+                        "{}: {}: \"{}\" yields \"{}\", expected \"{}\"",
+                        sample.position, name, sample.expression, value, sample.yields
                     )),
                     Err(e) => failures.push(format!(
-                        "{}: \"{}\" failed: {:?}",
-                        name, sample.expression, e
+                        "{}: {}: \"{}\" failed: {:?}",
+                        sample.position, name, sample.expression, e
                     )),
                 }
             }
@@ -161,7 +162,7 @@ mod tests {
         assert!(sample_count > 0, "no samples found in any function");
         assert!(
             failures.is_empty(),
-            "{} of {} samples failed:\n{}",
+            "{} of {} samples failed:\n{}\n",
             failures.len(),
             sample_count,
             failures.join("\n")

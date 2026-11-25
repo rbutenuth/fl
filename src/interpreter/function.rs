@@ -123,13 +123,21 @@ impl Parameter {
 /// An example call of a function: `expression` is evaluated and its result,
 /// converted to a string, must be equal to `yields`.
 pub struct Sample {
+    pub position: Position,
     pub expression: String,
     pub yields: String,
 }
 
 impl Sample {
+    #[track_caller]
     pub fn new(expression: impl Into<String>, yields: impl Into<String>) -> Self {
+        let caller = std::panic::Location::caller();
         Sample {
+            position: Position::new(
+                Arc::new(String::from(caller.file())),
+                caller.line(),
+                caller.column(),
+            ),
             expression: expression.into(),
             yields: yields.into(),
         }
@@ -220,7 +228,12 @@ impl FlFunction {
         callable: Box<dyn Callable>,
         samples: Vec<Sample>,
     ) {
-        let position = Position::new(Arc::new(String::from(file!())), line!(), 1);
+        let caller = std::panic::Location::caller();
+        let position = Position::new(
+            Arc::new(String::from(caller.file())),
+            caller.line(),
+            caller.column(),
+        );
         let name = name.into();
         let f = Self::new(position, package, name.clone(), comment, parameters, is_vararg, callable, samples);
         scope.put(&name, Value::Function(Arc::new(f))).unwrap();
