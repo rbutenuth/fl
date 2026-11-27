@@ -238,8 +238,8 @@ pub fn add_list_functions(scope: &dyn Scope) {
             Parameter::new_from_spec("value", "value to check", "E").unwrap(),
         ],
         false,
-        Box::new(|_scope: &Arc<dyn Scope>, p: &Vec<Value>|{
-            Ok(Value::Integer(if Engine::evaluate_to_boolean(&p[0])? { 0 } else { 1 }))
+        Box::new(|scope: &Arc<dyn Scope>, p: &Vec<Value>|{
+            Ok(Value::Integer(if Engine::evaluate_to_boolean(&p[0], scope)? { 0 } else { 1 }))
         }),
         vec![
             Sample::new("(is-empty '(1 2 3 4))", "0"), 

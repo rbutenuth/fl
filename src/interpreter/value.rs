@@ -24,7 +24,7 @@ impl fmt::Debug for FlLazy {
 }
 
 impl FlLazy {
-    pub fn new(scope: Arc<dyn Scope>, lazy: Value) -> Arc<FlLazy> {
+    pub fn new(lazy: Value, scope: Arc<dyn Scope>) -> Arc<FlLazy> {
         match lazy {
             Value::Lazy(l) => l.clone(),
             _ => Arc::new(FlLazy {
@@ -48,6 +48,12 @@ impl FlLazy {
             }
         }
     }
+
+    pub fn original_expression(&self) -> Value {
+        let content = self.content.lock().expect("mutex is poisoned");
+        content.lazy.clone()
+    }
+
 }
 
 #[derive(Debug)]
@@ -207,6 +213,21 @@ impl PartialEq for Value {
 }
 
 impl Value {
+    pub fn evaluates_to_self(&self) -> bool {
+        match self {
+            Value::Nil => true,
+            Value::Integer(_) => true,
+            Value::Float(_) => true,
+            Value::List(_) => false,
+            Value::Symbol(_) => false,
+            Value::Text(_) => true,
+            Value::Map() => todo!(),
+            Value::Object() => todo!(),
+            Value::Function(_) => true,
+            Value::Lazy(_) => false,
+            Value::Parameter(_) => false,
+        }
+    }
     pub fn fl_equals(&self, other: &Self) -> Result<Value, FlError> {
         match (self, other) {
             (Value::Nil, Value::Nil) => Ok(Value::Integer(1)),
@@ -221,8 +242,8 @@ impl Value {
             }
             (Value::Lazy(left), right) => left.evaluate()?.fl_equals(right),
             (left, Value::Lazy(right)) => left.fl_equals(&right.evaluate()?),
-            (Value::Parameter(left), right) => left.evaluate()?.fl_equals(right),
-            (left, Value::Parameter(right)) => left.fl_equals(&right.evaluate()?),
+// TODO            (Value::Parameter(left), right) => left.evaluate()?.fl_equals(right),
+// TODO            (left, Value::Parameter(right)) => left.fl_equals(&right.evaluate()?),
             // TODO: List, etc.
             _ => Ok(Value::Integer(0)),
         }
@@ -240,7 +261,7 @@ impl Value {
             Value::Object() => Ok(ValueType::Object),
             Value::Function(_) => Ok(ValueType::Function),
             Value::Lazy(l) => l.evaluate()?.as_value_type(),
-            Value::Parameter(p) => p.evaluate()?.as_value_type(),
+            Value::Parameter(_p) => todo!(), // no scope available... p.evaluate()?.as_value_type(),
         }
     }
 
@@ -294,6 +315,7 @@ impl Value {
             Value::Symbol(s) => Ok(scope.get(s.name())),
             Value::Map() => todo!(),
             Value::Object() => todo!(),
+            Value::Parameter(p) => p.evaluate(scope),
             // Nil, Integer, Float, Text, Function: just clone
             _ => Ok(self.clone()),
         }

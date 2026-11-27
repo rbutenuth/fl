@@ -12,15 +12,19 @@ pub struct ParameterScope {
 
 impl ParameterScope {
     pub fn new(
-        next: Option<Arc<dyn Scope>>,
+        next: Arc<dyn Scope>,
         name_to_index: Arc<HashMap<String, usize>>,
         parameters: Vec<Value>,
     ) -> Self {
         ParameterScope {
-            map_scope: MapScope::new(next),
+            map_scope: MapScope::new(Some(next)),
             name_to_index,
             parameters,
         }
+    }
+
+    pub fn get(&self, index: usize) -> Value {
+        self.parameters[index].clone()
     }
 }
 

@@ -3,6 +3,7 @@
 use std::{fmt, sync::Arc};
 
 use crate::interpreter::Scope;
+use crate::interpreter::value::FlLazy;
 use crate::{FlError, Position, Value, ValueType, ValueTypes};
 
 pub trait Callable: Send + Sync {
@@ -255,9 +256,17 @@ impl FlFunction {
                 .get(i)
                 .or(self.parameters.last())
                 .map_or(false, |p| p.eager);
-            parameters.push(if eager { argument.evaluate(scope)? } else { argument });
+            parameters.push(if eager { argument.evaluate(scope)? } else { Self::make_lazy(argument, scope) });
         }
         self.call(scope, parameters)
+    }
+
+    fn make_lazy(value: Value, scope: &Arc<dyn Scope>) -> Value {
+        match value {
+            Value::Lazy(lazy) => Value::Lazy(lazy),
+            v if v.evaluates_to_self() => v,
+            v => Value::Lazy(FlLazy::new(v, scope.clone())),
+        }
     }
 
     pub fn call(&self, scope: &Arc<dyn Scope>, parameters: Vec<Value>) -> Result<Value, FlError> {
@@ -265,7 +274,10 @@ impl FlFunction {
         let given = parameters.len();
         // Extra (vararg) parameters beyond the declared ones are not checked.
         for (parameter, value) in self.parameters.iter().zip(&parameters) {
-            parameter.check(value)?;
+            if parameter.eager {
+                // Lazy parameters are not checked.
+                parameter.check(value)?;
+            }
         }
         if given == expected {
             self.callable.call(scope, &parameters)

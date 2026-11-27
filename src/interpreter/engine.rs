@@ -23,9 +23,10 @@ impl Engine {
             "Return the parameter without evaluation.",
             vec![Parameter::new_from_spec("value", "Any value", "").unwrap()],
             false,
-            Box::new(|_scope: &Arc<dyn Scope>, p: &Vec<Value>| {
+            Box::new(|scope: &Arc<dyn Scope>, p: &Vec<Value>| {
                 match &p[0] {
-                    // TODO: Add specific code if p[0] is a "Paramter", then returned unevaluted wrapped value.
+                    Value::Parameter(p) => p.quote(scope),
+//                    Value::Lazy(lazy) => Ok(lazy.original_expression()),
                     x => Ok(x.clone()),
                 }
             }),
@@ -55,7 +56,7 @@ impl Engine {
         results
     }
 
-    pub fn evaluate_to_boolean(p: &Value) -> Result<bool, FlError> {
+    pub fn evaluate_to_boolean(p: &Value, scope:&Arc<dyn Scope>) -> Result<bool, FlError> {
         match p {
             Value::Nil => Ok(false),
             Value::Integer(i) => Ok(*i != 0),
@@ -66,8 +67,8 @@ impl Engine {
             Value::Map() => todo!(),
             Value::Object() => todo!(),
             Value::Function(_fl_function) => Ok(true),
-            Value::Lazy(l) => Self::evaluate_to_boolean(&l.evaluate()?),
-            Value::Parameter(p) => Self::evaluate_to_boolean(&p.evaluate()?),
+            Value::Lazy(l) => Self::evaluate_to_boolean(&l.evaluate()?, scope),
+            Value::Parameter(p) => Self::evaluate_to_boolean(&p.evaluate(scope)?, scope),
         }
     }
 }

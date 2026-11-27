@@ -1,4 +1,5 @@
 use crate::interpreter::function::{Callable, Parameter, Sample};
+use crate::interpreter::parameter_scope::ParameterScope;
 use crate::interpreter::scope::MapScope;
 use crate::interpreter::{FlFunction, Scope, Symbol};
 use crate::list::FlList;
@@ -17,30 +18,59 @@ impl ParameterPlaceholder {
         ParameterPlaceholder { symbol, index }
     }
 
-    pub fn evaluate(&self) -> Result<Value, FlError> {
-        Err(FlError::new("todo"))
+    pub fn evaluate(&self, scope: &Arc<dyn Scope>) -> Result<Value, FlError> {
+        match scope.get_parameter_scope() {
+            Some(p) => { 
+                match p.get(self.index) {
+                    Value::Lazy(lazy) => lazy.evaluate(),
+                    other => Ok(other),
+                }
+             },
+            None => Err(FlError::new("did not find parameter scope (should never happen)")),
+        }
+    }
+
+    pub fn quote(&self, scope: &Arc<dyn Scope>) -> Result<Value, FlError> {
+        match scope.get_parameter_scope() {
+            Some(p) => { 
+                match p.get(self.index) {
+                    Value::Lazy(lazy) => Ok(lazy.original_expression()),
+                    other => Ok(other),
+                }
+             },
+            None => Err(FlError::new("did not find parameter scope (should never happen)")),
+        }
     }
 }
 
 /// Body + defining scope of a function created at runtime.
 pub struct LambdaCallable {
-    param_names: Vec<String>,
     code: Vec<Value>,
+    param_names: Vec<String>,
+    name_to_index: Arc<HashMap<String, usize>>,
     defining_scope: Arc<dyn Scope>,
+    is_vararg: bool,
 }
 
 impl Callable for LambdaCallable {
     fn call(&self, _caller_scope: &Arc<dyn Scope>, args: &Vec<Value>) -> Result<Value, FlError> {
-        //        let parameters: Vec<Value>;
-        //        let parameter_scope = ParameterScope::new("name", caller_scope, name_to_index, parameters);
+        let parameters = if self.is_vararg {
+            Vec::new() // TODO
+        } else {
+            let parameters = Vec::with_capacity(args.len());
+
+            parameters
+        };
+        let parameter_scope = ParameterScope::new(self.defining_scope.clone(), self.name_to_index.clone(), parameters);
 
         let local: Arc<dyn Scope> = Arc::new(MapScope::new(Some(Arc::clone(&self.defining_scope))));
         for (name, value) in self.param_names.iter().zip(args) {
             local.define(name, value.clone())?;
         }
+        let arc_scope: Arc<dyn Scope> = Arc::new(parameter_scope);
         let mut result = Value::Nil;
         for expression in &self.code {
-            result = expression.evaluate(&local)?;
+            result = expression.evaluate(&arc_scope)?;
         }
         Ok(result)
     }
@@ -117,9 +147,11 @@ fn lambda(scope: &Arc<dyn Scope>, p: &Vec<Value>) -> Result<Value, FlError> {
         names.push(name);
     }
     let callable = LambdaCallable {
-        param_names: names,
         code: compile_all(&p[1..], &name_to_index),
+        param_names: names,
+        name_to_index: Arc::new(name_to_index),
         defining_scope: Arc::clone(scope),
+        is_vararg,
     };
     Ok(Value::Function(Arc::new(FlFunction::new(
         position,
